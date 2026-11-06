@@ -173,6 +173,18 @@
       if(parts)return parts[3]+'-'+parts[2].padStart(2,'0')+'-'+parts[1].padStart(2,'0');
       return /^\d{4}-\d{2}-\d{2}$/.test(text)?text:'';
     }
+    function maskBirthDateInput(input,fromPaste){
+      let raw=input.value;
+      const start=input.selectionStart==null?raw.length:input.selectionStart,end=input.selectionEnd==null?start:input.selectionEnd;
+      const beforeStart=raw.slice(0,start).replace(/\D/g,'').length,beforeEnd=raw.slice(0,end).replace(/\D/g,'').length;
+      if(/^\d{4}-\d{2}-\d{2}$/.test(raw.trim())||fromPaste&&/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(raw.trim()))raw=displayBirthDate(parseBirthDate(raw));
+      const digits=raw.replace(/\D/g,'').slice(0,8);
+      const formatted=digits.slice(0,2)+(digits.length>2?'/'+digits.slice(2,4):'')+(digits.length>4?'/'+digits.slice(4):'');
+      function position(count){if(!count)return 0;let seen=0;for(let i=0;i<formatted.length;i++){if(/[0-9]/.test(formatted[i])&&++seen===count)return i+1}return formatted.length}
+      const entireValue=start===input.value.length&&end===start;
+      input.value=formatted;
+      input.setSelectionRange(entireValue?formatted.length:position(beforeStart),entireValue?formatted.length:position(beforeEnd));
+    }
     function todayISO(){const now=new Date();return now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0')}
     function validBirthDate(value){
       if(!/^\d{4}-\d{2}-\d{2}$/.test(value)||value<'1900-01-01'||value>todayISO())return false;
@@ -192,7 +204,7 @@
       modalForm('student',s?'Sửa hồ sơ học sinh':'Thêm học sinh','Lớp '+esc(c.name)+' · Nhập thông tin học sinh.',field('Họ và tên học sinh','fullName',s&&s.fullName,'Nhập đầy đủ họ và tên',{full:true,maxlength:100})+field('Ngày tháng năm sinh','birthDate',s?displayBirthDate(s.birthDate):'','dd/mm/yy',{maxlength:10})+field('Số CCCD','cccd',s&&s.cccd,'Nhập 12 chữ số',{required:false,maxlength:12}),false);
       const form=$('#modalRoot form');form.dataset.id=idValue||'';form.dataset.classId=c.id;
       $('#f-fullName').setAttribute('autocomplete','off');$('#f-cccd').setAttribute('inputmode','numeric');$('#f-cccd').setAttribute('autocomplete','off');$('#f-cccd').setAttribute('pattern','[0-9]{12}');$('#f-cccd').setAttribute('aria-describedby','cccd-help');$('#f-cccd').insertAdjacentHTML('afterend','<small id="cccd-help" class="field-help">Có thể để trống nếu học sinh chưa có CCCD.</small>');
-      $('#f-birthDate').setAttribute('inputmode','numeric');$('#f-birthDate').setAttribute('autocomplete','off');$('#f-birthDate').setAttribute('aria-describedby','birthdate-help');$('#f-birthDate').insertAdjacentHTML('afterend','<small id="birthdate-help" class="field-help">Nhập ngày, tháng và năm sinh đầy đủ (4 chữ số cho năm).</small>');
+      $('#f-birthDate').setAttribute('inputmode','numeric');$('#f-birthDate').setAttribute('autocomplete','off');$('#f-birthDate').setAttribute('aria-describedby','birthdate-help');$('#f-birthDate').insertAdjacentHTML('afterend','<small id="birthdate-help" class="field-help">Gõ số, dấu / được thêm tự động. Nhập đủ 4 chữ số cho năm.</small>');
       $('#formError').setAttribute('role','alert');$('#formError').setAttribute('aria-live','polite');
     }
     function deleteStudent(idValue,confirmed){
@@ -258,7 +270,15 @@
       if(act==='close-modal')closeModal();if(act==='backdrop-close'&&e.target===target)closeModal();
     });
     document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();if(e.key==='Enter'&&e.target.matches('.slot[role="button"]'))openScheduleModal(e.target.dataset.id)});
-    document.addEventListener('input',e=>{if(e.target.id==='classSearch'||e.target.id==='teacherSearch'||e.target.id==='studentSearch'){const cursor=e.target.selectionStart;if(e.target.id==='studentSearch')studentSearch=e.target.value;else searchText=e.target.value;render();const field=$('#'+e.target.id);if(field){field.focus();field.setSelectionRange(cursor,cursor)}}});
+    document.addEventListener('beforeinput',e=>{
+      const input=e.target;if(input.id!=='f-birthDate'||e.isComposing||input.selectionStart!==input.selectionEnd)return;
+      const caret=input.selectionStart,back=e.inputType==='deleteContentBackward'&&input.value[caret-1]==='/',forward=e.inputType==='deleteContentForward'&&input.value[caret]==='/';
+      if(!back&&!forward)return;
+      const index=back?caret-2:caret+1;if(index<0||index>=input.value.length)return;
+      e.preventDefault();input.value=input.value.slice(0,index)+input.value.slice(index+1);const next=back?index:caret;input.setSelectionRange(next,next);maskBirthDateInput(input);
+    });
+    document.addEventListener('input',e=>{if(e.target.id==='f-birthDate'){if(!e.isComposing)maskBirthDateInput(e.target,e.inputType==='insertFromPaste');return}if(e.target.id==='classSearch'||e.target.id==='teacherSearch'||e.target.id==='studentSearch'){const cursor=e.target.selectionStart;if(e.target.id==='studentSearch')studentSearch=e.target.value;else searchText=e.target.value;render();const field=$('#'+e.target.id);if(field){field.focus();field.setSelectionRange(cursor,cursor)}}});
+    document.addEventListener('compositionend',e=>{if(e.target.id==='f-birthDate')maskBirthDateInput(e.target)});
     document.addEventListener('change',e=>{if(e.target.id==='scheduleClass'){selectedClass=e.target.value;render()}if(e.target.id==='examFilter'){selectedExam=e.target.value;render()}});
     document.addEventListener('submit',e=>{
       const form=e.target.closest('[data-form]');if(!form)return;e.preventDefault();const f=new FormData(form),kind=form.dataset.form,recordId=form.dataset.id;
