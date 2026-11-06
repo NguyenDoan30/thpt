@@ -187,12 +187,12 @@
       $('#f-fullName').setAttribute('autocomplete','off');$('#f-cccd').setAttribute('inputmode','numeric');$('#f-cccd').setAttribute('autocomplete','off');$('#f-cccd').setAttribute('pattern','[0-9]{12}');$('#f-cccd').setAttribute('aria-describedby','cccd-help');$('#f-cccd').insertAdjacentHTML('afterend','<small id="cccd-help" class="field-help">Có thể để trống nếu học sinh chưa có CCCD.</small>');
       $('#formError').setAttribute('role','alert');$('#formError').setAttribute('aria-live','polite');
     }
-    function deleteStudent(idValue){
+    function deleteStudent(idValue,confirmed){
       const s=data.studentProfiles.find(x=>x.id===idValue&&x.classId===profileClass);if(!s)return;
-      if(!confirm('Xóa hồ sơ học sinh '+s.fullName+' khỏi lớp '+className(s.classId)+'?'))return;
+      if(!confirmed){openModal('Xóa hồ sơ học sinh','Lớp '+esc(className(s.classId)),'<div class="modal-form"><p style="line-height:1.7">Bạn có muốn xóa hồ sơ của <strong>'+esc(s.fullName)+'</strong> khỏi lớp này?</p><div class="modal-foot"><button type="button" class="btn btn-secondary" data-action="close-modal">Hủy</button><button type="button" class="btn btn-danger" data-action="confirm-delete-student" data-id="'+esc(s.id)+'">'+icon('trash')+' Xóa học sinh</button></div></div>',false);$('#modalRoot [data-action="close-modal"]').focus();return}
       const previous=data.studentProfiles;data.studentProfiles=previous.filter(x=>x.id!==idValue);
       try{save()}catch(e){data.studentProfiles=previous;toast('Không lưu được thay đổi. Hãy kiểm tra dung lượng hoặc quyền lưu trữ của trình duyệt.');return}
-      render();toast('Đã xóa hồ sơ học sinh.');
+      closeModal();render();toast('Đã xóa hồ sơ học sinh.');
     }
     function classOptions(selected){return data.classes.slice().sort((a,b)=>a.name.localeCompare(b.name,'vi')).map(c=>'<option value="'+esc(c.id)+'" '+(c.id===selected?'selected':'')+'>'+esc(c.name)+' — '+esc(c.grade)+'</option>').join('')}
     function renderSchedule(){
@@ -242,6 +242,7 @@
       if(act==='view-class'){if(!cls(target.dataset.id))return;profileClass=target.dataset.id;studentSearch='';page='students';render();return}
       if(act==='back-classes'){page='classes';profileClass='';studentSearch='';render();return}
       if(act==='add-student')openStudentModal('');if(act==='edit-student')openStudentModal(target.dataset.id);if(act==='delete-student')deleteStudent(target.dataset.id);
+      if(act==='confirm-delete-student')deleteStudent(target.dataset.id,true);
       if(act==='add-class')openClassModal('');if(act==='edit-class')openClassModal(target.dataset.id);if(act==='delete-class')deleteClass(target.dataset.id);
       if(act==='add-assignment')openAssignmentModal('');if(act==='edit-assignment')openAssignmentModal(target.dataset.id);if(act==='delete-assignment')deleteAssignment(target.dataset.id);
       if(act==='add-slot')openScheduleModal('',target.dataset.day,target.dataset.period);if(act==='add-slot-header')openScheduleModal('');if(act==='edit-slot')openScheduleModal(target.dataset.id);if(act==='delete-slot')deleteSlot(target.dataset.id);
