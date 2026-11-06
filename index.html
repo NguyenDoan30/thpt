@@ -23,6 +23,7 @@
     @media(max-width:430px){.award-grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}.stat-icon{width:28px;height:28px}.page-head{gap:10px}.page-head p{font-size:10px}.btn .btn-label{display:none}.head-actions .btn{width:35px;height:35px;padding:0}.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.modal-form{padding:15px}.modal-head{padding:17px 17px 12px}}
     .class-row{cursor:pointer}.class-row:hover{background:var(--mint-2)}.class-link{border:0;background:transparent;padding:0;text-align:left;color:inherit}.class-link:focus-visible,.btn:focus-visible,.icon-btn:focus-visible{outline:3px solid #84a999;outline-offset:3px}.class-link:hover strong{text-decoration:underline}.roster-back{margin-top:22px}.roster-back+.page-head{padding-top:17px}.roster-summary{display:flex;flex-wrap:wrap;gap:12px 24px;padding:15px 18px;border-bottom:1px solid var(--line);color:#62756c;font-size:11px}.roster-summary strong{color:var(--pine)}.student-name{color:var(--ink);font-weight:700}.student-id{font-variant-numeric:tabular-nums;letter-spacing:.04em}.student-actions .btn{font-size:11px}.roster-note{text-align:left;font-size:11px;line-height:1.6}.modal-backdrop{overflow-y:auto}.modal{max-height:calc(100dvh - 36px);overflow-y:auto}#studentFormStatus{margin:0;color:var(--muted);font-size:10px;line-height:1.6}.student-table{min-width:620px}.student-mobile-label{display:none}
     @media(max-width:760px){.student-actions .btn{padding:8px}.roster-summary{gap:9px 18px}.roster-toolbar .search{min-width:180px}.student-table{min-width:0}.student-table thead{display:none}.student-table,.student-table tbody,.student-table tr,.student-table td{display:block;width:100%}.student-table tr{padding:12px 16px;border-top:1px solid var(--line)}.student-table td{padding:5px 0;border:0;font-size:12px}.student-table td.student-order{font-size:10px;color:var(--muted)}.student-mobile-label{display:inline-block;width:90px;color:var(--muted);font-weight:500}.student-table .student-name{font-size:14px}.student-actions{padding-top:5px}.student-table .empty{padding:22px 0}.page-head .roster-add{width:auto;height:auto;padding:10px 12px}.roster-add .btn-label{display:inline}}
+    .birthdate-shell{position:relative}.birthdate-shell input,.birthdate-template{font-family:Consolas,'Courier New',monospace;font-size:11px;font-weight:400;letter-spacing:0;line-height:normal}.birthdate-shell input{position:relative;z-index:1;color:transparent;caret-color:var(--ink);background:transparent}.birthdate-shell input::placeholder{color:transparent;opacity:0}.birthdate-shell input::selection{color:transparent;background:#cfe3d8}.birthdate-template{position:absolute;left:12px;top:50%;transform:translateY(-50%);z-index:2;white-space:pre;pointer-events:none;max-width:calc(100% - 24px);overflow:hidden;color:#8a9690}.birthdate-template .date-entered{color:var(--ink)}.birthdate-template .date-separator{color:#72817c}
   </style>
 </head>
 <body>
@@ -173,6 +174,13 @@
       if(parts)return parts[3]+'-'+parts[2].padStart(2,'0')+'-'+parts[1].padStart(2,'0');
       return /^\d{4}-\d{2}-\d{2}$/.test(text)?text:'';
     }
+    function birthDateTemplateMarkup(value){
+      value=String(value||'');const pattern='dd/mm/yy';let html='';
+      for(let i=0;i<Math.max(pattern.length,value.length);i++){const slash=i===2||i===5,entered=!slash&&i<value.length;html+='<span class="'+(slash?'date-separator':entered?'date-entered':'date-placeholder')+'">'+esc(slash?'/':entered?value[i]:pattern[i]||'')+'</span>'}
+      return html;
+    }
+    function birthDateField(value){return '<div class="field"><label for="f-birthDate">Ngày tháng năm sinh</label><div class="birthdate-shell"><input id="f-birthDate" name="birthDate" type="text" value="'+esc(value)+'" placeholder="dd/mm/yy" maxlength="10" required><span id="birthDateTemplate" class="birthdate-template" aria-hidden="true">'+birthDateTemplateMarkup(value)+'</span></div></div>'}
+    function updateBirthDateTemplate(input){const template=$('#birthDateTemplate');if(template)template.innerHTML=birthDateTemplateMarkup(input.value)}
     function maskBirthDateInput(input,fromPaste){
       let raw=input.value;
       const start=input.selectionStart==null?raw.length:input.selectionStart,end=input.selectionEnd==null?start:input.selectionEnd;
@@ -184,6 +192,7 @@
       const entireValue=start===input.value.length&&end===start;
       input.value=formatted;
       input.setSelectionRange(entireValue?formatted.length:position(beforeStart),entireValue?formatted.length:position(beforeEnd));
+      updateBirthDateTemplate(input);
     }
     function todayISO(){const now=new Date();return now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0')}
     function validBirthDate(value){
@@ -201,10 +210,10 @@
     function openStudentModal(idValue){
       const c=cls(profileClass),s=data.studentProfiles.find(x=>x.id===idValue&&x.classId===profileClass);
       if(!c)return;if(idValue&&!s)return;const limit=profileLimit(c.id);if(!s&&profilesFor(c.id).length>=limit){toast(limit?'Lớp đã nhập đủ '+limit+' hồ sơ theo sĩ số. Hãy tăng sĩ số trong Sửa lớp trước khi thêm.':'Hãy cập nhật sĩ số lớp lớn hơn 0 trước khi thêm học sinh.');return}
-      modalForm('student',s?'Sửa hồ sơ học sinh':'Thêm học sinh','Lớp '+esc(c.name)+' · Nhập thông tin học sinh.',field('Họ và tên học sinh','fullName',s&&s.fullName,'Nhập đầy đủ họ và tên',{full:true,maxlength:100})+field('Ngày tháng năm sinh','birthDate',s?displayBirthDate(s.birthDate):'','dd/mm/yy',{maxlength:10})+field('Số CCCD','cccd',s&&s.cccd,'Nhập 12 chữ số',{required:false,maxlength:12}),false);
+      modalForm('student',s?'Sửa hồ sơ học sinh':'Thêm học sinh','Lớp '+esc(c.name)+' · Nhập thông tin học sinh.',field('Họ và tên học sinh','fullName',s&&s.fullName,'Nhập đầy đủ họ và tên',{full:true,maxlength:100})+birthDateField(s?displayBirthDate(s.birthDate):'')+field('Số CCCD','cccd',s&&s.cccd,'Nhập 12 chữ số',{required:false,maxlength:12}),false);
       const form=$('#modalRoot form');form.dataset.id=idValue||'';form.dataset.classId=c.id;
       $('#f-fullName').setAttribute('autocomplete','off');$('#f-cccd').setAttribute('inputmode','numeric');$('#f-cccd').setAttribute('autocomplete','off');$('#f-cccd').setAttribute('pattern','[0-9]{12}');$('#f-cccd').setAttribute('aria-describedby','cccd-help');$('#f-cccd').insertAdjacentHTML('afterend','<small id="cccd-help" class="field-help">Có thể để trống nếu học sinh chưa có CCCD.</small>');
-      $('#f-birthDate').setAttribute('inputmode','numeric');$('#f-birthDate').setAttribute('autocomplete','off');$('#f-birthDate').setAttribute('aria-describedby','birthdate-help');$('#f-birthDate').insertAdjacentHTML('afterend','<small id="birthdate-help" class="field-help">Gõ số, dấu / được thêm tự động. Nhập đủ 4 chữ số cho năm.</small>');
+      $('#f-birthDate').setAttribute('inputmode','numeric');$('#f-birthDate').setAttribute('autocomplete','off');$('#f-birthDate').setAttribute('spellcheck','false');$('#f-birthDate').setAttribute('aria-describedby','birthdate-help');$('.birthdate-shell').insertAdjacentHTML('afterend','<small id="birthdate-help" class="field-help">Chỉ cần gõ số. Nhập đủ 4 chữ số cho năm.</small>');
       $('#formError').setAttribute('role','alert');$('#formError').setAttribute('aria-live','polite');
     }
     function deleteStudent(idValue,confirmed){
