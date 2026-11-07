@@ -1,4 +1,4 @@
-# Cổng quản lý THPT An Bình
+# Cổng quản lý THPT Lê Quý Đôn
 
 Website tĩnh quản lý lớp học, giáo viên bộ môn, thời khóa biểu và thành tích học sinh.
 
