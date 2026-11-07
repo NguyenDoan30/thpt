@@ -25,12 +25,15 @@ Tài khoản dùng chung giữa các thiết bị, nhưng dữ liệu lớp, h�
 
 - Thêm, sửa, xóa lớp; kiểm tra sĩ số từ 0 đến 60 học sinh.
 - Lưu giáo viên chủ nhiệm và phòng học cho từng lớp.
+- Mở “Xem học sinh” trong từng lớp để xem, thêm, sửa và xóa hồ sơ. Sáu lớp mẫu có danh sách học sinh mẫu theo sĩ số, được gắn nhãn **Mẫu**, ngày sinh giả lập và để trống CCCD.
 - Phân công, cập nhật, xóa giáo viên bộ môn theo lớp.
 - Xếp, sửa, xóa tiết học theo lớp, thứ và tiết; chặn trùng khung giờ.
 - Vinh danh học sinh theo kỳ thi, môn học, điểm và danh hiệu.
 - Tự lên lớp theo khóa tuyển sinh: lớp 10 → 11 → 12, tốt nghiệp từ năm học thứ tư.
 - Bấm ảnh đại diện cạnh tên trường để chọn ảnh từ thiết bị; ảnh được lưu trên trình duyệt và dùng chung giữa các năm học.
 - Lưu dữ liệu trên trình duyệt bằng `localStorage`.
+
+Các lớp mẫu cũ chưa có hồ sơ sẽ được bổ sung một lần; lớp đã có hồ sơ được giữ nguyên. Xóa hồ sơ mẫu sẽ không tự tạo lại khi tải trang. Với lớp tự tạo còn trống, có thể chọn **Tạo học sinh mẫu** để thử. Những hồ sơ này không phải thông tin học sinh thật.
 
 ## Theo dõi khóa học qua các năm
 
@@ -47,6 +50,8 @@ Cần Node.js, gói `playwright` và Chromium. Chạy `node tests/cohort-lifecyc
 Chạy `node tests/school-avatar.cjs` để kiểm tra chọn ảnh, lưu ảnh đại diện, tải lại và xử lý tệp không hợp lệ. Ảnh được xử lý ngay trên thiết bị, không tải lên máy chủ.
 
 Chạy `node tests/shared-login.cjs` để kiểm tra đăng nhập, khôi phục phiên, đăng xuất và lỗi dịch vụ. Kiểm thử dùng SDK Supabase thật với các phản hồi xác thực giả lập; không cần tài khoản thật. Bộ kiểm thử tải SDK ghim phiên bản vào bộ nhớ đệm ở lần chạy đầu tiên, hoặc nhận đường dẫn SDK qua `SUPABASE_TEST_SDK_PATH`.
+
+Chạy `node tests/sample-students.cjs` để kiểm tra danh sách học sinh mẫu, chuyển đổi dữ liệu cũ, giữ hồ sơ đã nhập, xóa/tải lại và chuyển khóa qua các năm học.
 
 ## Lưu ý về dữ liệu
 
