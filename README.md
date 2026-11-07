@@ -14,6 +14,7 @@ Mở `index.html` bằng trình duyệt. Không cần cài đặt hoặc build.
 - Xếp, sửa, xóa tiết học theo lớp, thứ và tiết; chặn trùng khung giờ.
 - Vinh danh học sinh theo kỳ thi, môn học, điểm và danh hiệu.
 - Tự lên lớp theo khóa tuyển sinh: lớp 10 → 11 → 12, tốt nghiệp từ năm học thứ tư.
+- Bấm ảnh đại diện cạnh tên trường để chọn ảnh từ thiết bị; ảnh được lưu trên trình duyệt và dùng chung giữa các năm học.
 - Lưu dữ liệu trên trình duyệt bằng `localStorage`.
 
 ## Theo dõi khóa học qua các năm
@@ -27,6 +28,8 @@ Lớp đã có được gắn cố định với khóa tuyển sinh; khối tự
 ## Kiểm tra luồng lên lớp
 
 Cần Node.js, gói `playwright` và Chromium. Chạy `node tests/cohort-lifecycle.cjs`; đặt `CHROMIUM_PATH` nếu Chromium không ở `/usr/bin/chromium`. Kiểm thử dùng dữ liệu giả trong trình duyệt riêng, không thay đổi dữ liệu đang sử dụng. Đặt `COHORT_TEST_ARTIFACT_DIR` để lưu ảnh kiểm tra.
+
+Chạy `node tests/school-avatar.cjs` để kiểm tra chọn ảnh, lưu ảnh đại diện, tải lại và xử lý tệp không hợp lệ. Ảnh được xử lý ngay trên thiết bị, không tải lên máy chủ.
 
 ## Lưu ý về dữ liệu
 
