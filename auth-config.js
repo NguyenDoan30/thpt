@@ -3,5 +3,5 @@
 // Never put a secret key, service_role key, password, or database URL here.
 window.SCHOOL_AUTH_CONFIG = {
   supabaseUrl: '',
-  publishableKey: '',
+  publishableKey: 'sb_publishable_DuXon1dpBcdgIdChGENQxQ_TKFlsDO4',
 };
