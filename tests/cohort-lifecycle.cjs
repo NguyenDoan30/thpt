@@ -1,8 +1,8 @@
 const assert = require('node:assert/strict');
-const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require('playwright');
+const { startTestServer, prepareAuthenticatedPage } = require('./auth-fixture.cjs');
 
 const YEARS_KEY = 'thpt-an-binh-school-years-v1';
 const DATA_KEY = 'thpt-an-binh-data-v1';
@@ -28,12 +28,7 @@ const fixture = () => ({
 });
 
 async function run() {
-  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'));
-  const server = http.createServer((request, response) => {
-    response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    response.end(html);
-  });
-  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const server = await startTestServer();
   let browser;
   try {
     browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium', headless: true, args: ['--no-sandbox'] });
@@ -42,16 +37,16 @@ async function run() {
     page.on('pageerror', error => pageErrors.push(error.message));
     await page.route('https://fonts.googleapis.com/**', route => route.abort());
     await page.route('https://fonts.gstatic.com/**', route => route.abort());
-    const origin = `http://127.0.0.1:${server.address().port}`;
-    await page.goto(origin);
+    await prepareAuthenticatedPage(page, server.origin);
 
     const seed = async (years, current = '2026-2027') => {
       await page.evaluate(({ yearsKey, dataKey, years, current }) => {
-        localStorage.clear();
+        localStorage.removeItem(yearsKey);
+        localStorage.removeItem(dataKey);
         localStorage.setItem(yearsKey, JSON.stringify({ current, years, teachers: [] }));
         localStorage.setItem(dataKey, JSON.stringify(years[current]));
       }, { yearsKey: YEARS_KEY, dataKey: DATA_KEY, years, current });
-      await page.reload();
+      await page.reload(); await page.locator('#appRoot').waitFor({ state: 'visible' });
     };
     const model = () => page.evaluate(() => ({ current: currentSchoolYear, data, years: schoolYears, teachers: globalTeachers }));
     const openYears = () => page.locator('#academicYearButton').click();
@@ -187,7 +182,7 @@ async function run() {
       await page.setViewportSize({ width: 1280, height: 900 });
     }
     const beforeReload = (await model()).data;
-    await page.reload();
+    await page.reload(); await page.locator('#appRoot').waitFor({ state: 'visible' });
     assert.deepEqual((await model()).data, beforeReload, 'Reloading must not promote a cohort twice');
     await overview(40, 1, { 10: 0, 11: 0, 12: 40 });
 
@@ -275,7 +270,7 @@ async function run() {
     console.log('PASS: cohort promotion, fourth-year graduation, new intake, archive retention, historical snapshots, skipped/backward years, reload, legacy migration, and manual-year validation.');
   } finally {
     if (browser) await browser.close();
-    await new Promise(resolve => server.close(resolve));
+    await server.close();
   }
 }
 
