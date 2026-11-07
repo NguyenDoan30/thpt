@@ -1,19 +1,13 @@
 const assert = require('node:assert/strict');
-const http = require('node:http');
-const fs = require('node:fs');
-const path = require('node:path');
 const { chromium } = require('playwright');
+const { startTestServer, prepareAuthenticatedPage } = require('./auth-fixture.cjs');
 
 const AVATAR_KEY = 'thpt-an-binh-school-avatar-v1';
 const YEARS_KEY = 'thpt-an-binh-school-years-v1';
 const DATA_KEY = 'thpt-an-binh-data-v1';
 
 async function run() {
-  const server = http.createServer((request, response) => {
-    response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    response.end(fs.readFileSync(path.join(__dirname, '..', 'index.html')));
-  });
-  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const server = await startTestServer();
   let browser;
   try {
     browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium', headless: true, args: ['--no-sandbox'] });
@@ -25,7 +19,7 @@ async function run() {
       page.on('pageerror', error => errors.push(error.message));
       await page.route('https://fonts.googleapis.com/**', route => route.abort());
       await page.route('https://fonts.gstatic.com/**', route => route.abort());
-      await page.goto(`http://127.0.0.1:${server.address().port}`);
+      await prepareAuthenticatedPage(page, server.origin);
       if (mobile) await page.locator('#mobileMenu').click();
 
       const button = page.locator('#schoolAvatarButton');
@@ -114,7 +108,7 @@ async function run() {
       await page.evaluate(() => window.restoreAvatarStorage());
       assert.deepEqual(await state(), original);
 
-      await page.reload(); if (mobile) await page.locator('#mobileMenu').click();
+      await page.reload(); await page.locator('#appRoot').waitFor({ state: 'visible' }); if (mobile) await page.locator('#mobileMenu').click();
       await assertAvatar(first);
       await page.locator('#academicYearButton').click();
       await page.locator('#f-startYear').fill('2027'); await page.locator('#f-endYear').fill('2028');
@@ -124,14 +118,14 @@ async function run() {
       await page.locator('#academicYearButton').click();
       await page.locator('[data-action="select-school-year"][data-year="2026-2027"]').click();
       await assertAvatar(first);
-      await page.reload(); if (mobile) await page.locator('#mobileMenu').click(); await assertAvatar(first);
+      await page.reload(); await page.locator('#appRoot').waitFor({ state: 'visible' }); if (mobile) await page.locator('#mobileMenu').click(); await assertAvatar(first);
       assert.deepEqual(errors, []);
       console.log(`PASS ${viewport.width}px: native/keyboard image picker, square PNG conversion, JPEG/reselection, validation and quota recovery, reload/year persistence, academic data unchanged.`);
       await context.close();
     }
   } finally {
     if (browser) await browser.close();
-    await new Promise(resolve => server.close(resolve));
+    await server.close();
   }
 }
 run().catch(error => { console.error(error); process.exitCode = 1; });
