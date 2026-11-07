@@ -110,6 +110,7 @@ async function run() {
 
       await page.reload(); await page.locator('#appRoot').waitFor({ state: 'visible' }); if (mobile) await page.locator('#mobileMenu').click();
       await assertAvatar(first);
+      if (mobile) await page.locator('#sidebarBackdrop').click({ position: { x: viewport.width - 10, y: 100 } });
       await page.locator('#academicYearButton').click();
       await page.locator('#f-startYear').fill('2027'); await page.locator('#f-endYear').fill('2028');
       await page.locator('#copySchoolYear').uncheck();
