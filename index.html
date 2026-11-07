@@ -260,14 +260,14 @@
     function openAssignmentModal(idValue){const a=data.assignments.find(x=>x.id===idValue);if(!data.classes.length){toast('Hãy thêm lớp học trước khi phân công giáo viên.');return}modalForm('assignment',a?'Sửa hồ sơ giáo viên bộ môn':'Thêm giáo viên bộ môn',a?'Cập nhật tên, môn dạy, lớp phụ trách hoặc số điện thoại.':'Nhập tên, môn dạy, lớp phụ trách và số điện thoại của giáo viên.',field('Họ và tên giáo viên','name',a&&a.name,'Ví dụ: Nguyễn Văn An')+field('Môn học','subject',a&&a.subject,'Chọn môn học',{select:['Toán','Ngữ văn','Tiếng Anh','Vật lý','Hóa học','Sinh học','Lịch sử','Địa lý','Tin học','GDCD','Thể dục','Công nghệ','Khác'].map(x=>'<option '+((a&&a.subject===x)?'selected':'')+'>'+x+'</option>').join('')})+field('Lớp được phân công','classId',a&&a.classId,'',{select:classOptions(a&&a.classId)})+field('Số điện thoại','phone',a&&a.phone,'09xx xxx xxx',{type:'tel'}),false);$('#modalRoot form').dataset.id=idValue||''}
     function teacherDirectory(){
       const people=new Map();
-      data.assignments.forEach(a=>{const name=String(a.name||'').trim();if(!name)return;const key=name.toLowerCase();if(!people.has(key))people.set(key,{name,phone:String(a.phone||''),assignments:[]});const person=people.get(key);if(!person.phone&&a.phone)person.phone=String(a.phone);if(!person.assignments.some(x=>x.classId===a.classId&&x.subject===a.subject))person.assignments.push({classId:a.classId,subject:a.subject})});
+      data.assignments.forEach(a=>{const name=String(a.name||'').trim();if(!name)return;const key=name.toLowerCase();if(!people.has(key))people.set(key,{name,assignments:[]});const person=people.get(key);if(!person.assignments.some(x=>x.classId===a.classId&&x.subject===a.subject))person.assignments.push({classId:a.classId,subject:a.subject})});
       return [...people.values()].sort((a,b)=>a.name.localeCompare(b.name,'vi'));
     }
     function scheduleTeacherOptions(classId,subject,selected){
       const people=teacherDirectory(),subjectKey=String(subject||'').trim().toLowerCase();
       const rank=person=>{const matches=person.assignments.filter(a=>!subjectKey||String(a.subject||'').trim().toLowerCase()===subjectKey);if(classId&&matches.some(a=>a.classId===classId))return 0;if(matches.length)return 1;return 2};
       people.sort((a,b)=>rank(a)-rank(b)||a.name.localeCompare(b.name,'vi'));
-      let options=people.map(person=>{const subjects=[...new Set(person.assignments.map(a=>String(a.subject||'').trim()).filter(Boolean))].join(', '),label=person.name+(subjects?' — '+subjects:'')+(person.phone?' · '+person.phone:'');return '<option value="'+esc(person.name)+'" '+(selected&&person.name.toLowerCase()===String(selected).toLowerCase()?'selected':'')+'>'+esc(label)+'</option>'}).join('');
+      let options=people.map(person=>{const subjects=[...new Set(person.assignments.map(a=>String(a.subject||'').trim()).filter(Boolean))].join(', '),label=person.name+(subjects?' — '+subjects:'');return '<option value="'+esc(person.name)+'" '+(selected&&person.name.toLowerCase()===String(selected).toLowerCase()?'selected':'')+'>'+esc(label)+'</option>'}).join('');
       if(selected&&!people.some(person=>person.name.toLowerCase()===String(selected).toLowerCase()))options='<option value="'+esc(selected)+'" selected>'+esc(selected)+' · Chưa có hồ sơ</option>'+options;
       else if(!selected)options='<option value="" selected disabled>'+(people.length?'Chọn giáo viên bộ môn':'Chưa có giáo viên — thêm ở mục Giáo viên bộ môn')+'</option>'+options;
       return options;
@@ -276,7 +276,7 @@
       const person=teacherDirectory().find(x=>x.name.toLowerCase()===String(name||'').toLowerCase());
       if(!person)return '<div class="schedule-teacher-details">'+(name?'<strong>'+esc(name)+'</strong>Chưa có hồ sơ giáo viên. ':'Chưa có hồ sơ giáo viên. ')+'<button type="button" class="link-btn" data-page="teachers">Thêm giáo viên bộ môn</button></div>';
       const subjects=[...new Set(person.assignments.map(a=>String(a.subject||'').trim()).filter(Boolean))].join(', ')||'Chưa cập nhật',classes=[...new Set(person.assignments.map(a=>className(a.classId)))].join(', ')||'Chưa phân công';
-      return '<div class="schedule-teacher-details"><strong>'+esc(person.name)+'</strong><span>Môn dạy: '+esc(subjects)+'</span><span>Lớp phụ trách: '+esc(classes)+'</span><span>Điện thoại: '+esc(person.phone||'Chưa cập nhật')+'</span></div>';
+      return '<div class="schedule-teacher-details"><strong>'+esc(person.name)+'</strong><span>Môn dạy: '+esc(subjects)+'</span><span>Lớp phụ trách: '+esc(classes)+'</span></div>';
     }
     function refreshScheduleTeacherDetails(){const holder=$('#scheduleTeacherDetails'),select=$('#f-teacher');if(holder&&select)holder.innerHTML=scheduleTeacherDetails(select.value)}
     function refreshScheduleTeacherChoices(){const select=$('#f-teacher'),classField=$('#f-classId'),subjectField=$('#f-subject');if(!select||!classField||!subjectField)return;const current=select.value;select.innerHTML=scheduleTeacherOptions(classField.value,subjectField.value,current);refreshScheduleTeacherDetails()}
