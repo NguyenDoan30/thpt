@@ -157,7 +157,9 @@ async function run() {
     await page.locator('.modal-foot [data-action="close-modal"]').click();
     await page.locator('.nav-btn[data-page="teachers"]').click();
     await page.locator('[data-action="add-assignment"]').click();
-    assert.deepEqual(await page.locator('#f-classId option').evaluateAll(options => options.map(option => option.value)), [newIntake.id]);
+    await page.locator('#f-subject').fill('Toán');
+    await page.locator('[data-autocomplete-option][data-value="Toán"]').click();
+    assert.deepEqual(await page.locator('#f-classId option').evaluateAll(options => options.map(option => option.value).filter(Boolean)), [newIntake.id]);
     await page.locator('.modal-foot [data-action="close-modal"]').click();
 
     // Updating archive metadata must not reset the intake or reactivate its students.

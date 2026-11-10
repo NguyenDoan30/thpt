@@ -366,6 +366,17 @@
       closeModal();render();toast('Đã xóa hồ sơ học sinh.');
     }
     function classOptions(selected,includeSelectedArchive){return data.classes.filter(c=>c.status!=='Đã tốt nghiệp'||includeSelectedArchive&&c.id===selected).slice().sort((a,b)=>a.name.localeCompare(b.name,'vi')).map(c=>'<option value="'+esc(c.id)+'" '+(c.id===selected?'selected':'')+'>'+esc(c.name)+' — '+esc(c.grade)+'</option>').join('')}
+    function assignmentForSubject(classId,subject,recordId){const key=cleanSubject(subject).toLocaleLowerCase('vi');return data.assignments.find(a=>a.id!==recordId&&a.classId===classId&&cleanSubject(a.subject).toLocaleLowerCase('vi')===key)}
+    function refreshAssignmentClasses(preferred){
+      const form=$('#modalRoot form[data-form="assignment"]'),subject=$('#f-subject'),select=$('#f-classId'),help=$('#assignmentClassHelp');if(!form||!subject||!select||!help)return;
+      const selected=preferred===undefined?(select.value||select.dataset.preferredClass||''):preferred;
+      if(subject.dataset.selected!=='true'||!cleanSubject(subject.value)){select.dataset.preferredClass=selected;select.innerHTML='<option value="">Chọn môn học trước</option>';select.disabled=true;help.textContent='Chọn môn học trước để xem các lớp chưa được phân công.';return}
+      delete select.dataset.preferredClass;
+      const available=activeClasses().filter(c=>!assignmentForSubject(c.id,subject.value,form.dataset.id)).sort((a,b)=>a.name.localeCompare(b.name,'vi'));
+      select.innerHTML='<option value="">'+(available.length?'Chọn lớp được phân công':'Không còn lớp phù hợp')+'</option>'+available.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name)+' — '+esc(c.grade)+'</option>').join('');
+      select.disabled=!available.length;select.value=available.some(c=>c.id===selected)?selected:'';
+      help.textContent=available.length?'Chỉ hiển thị lớp chưa có giáo viên môn '+cleanSubject(subject.value)+'.':('Các lớp đang học đều đã có giáo viên môn '+cleanSubject(subject.value)+'. Hãy sửa hoặc xóa phân công hiện có nếu cần thay giáo viên.');
+    }
     function renderSchedule(){
       const enrolled=activeClasses();if(!enrolled.some(c=>c.id===selectedClass))selectedClass=enrolled[0]?enrolled[0].id:'';
       const days=['Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy'],slots=[1,2,3,4,5];
@@ -460,7 +471,7 @@
       $('#modalRoot form').dataset.id=idValue||'';if(c)$('#f-grade').disabled=true;updateClassCohortHelp();
       $('#f-name').focus();$('#f-name').setSelectionRange($('#f-name').value.length,$('#f-name').value.length);$('#f-students').setAttribute('aria-describedby','student-help');$('#f-students').insertAdjacentHTML('afterend','<small id="student-help" class="field-help">Tối đa 60 học sinh mỗi lớp.</small>');
     }
-    function openAssignmentModal(idValue){const a=data.assignments.find(x=>x.id===idValue);if(!activeClasses().length){toast('Hãy thêm lớp đang học trước khi phân công giáo viên.');return}modalForm('assignment',a?'Sửa hồ sơ giáo viên bộ môn':'Thêm giáo viên bộ môn',a?'Cập nhật tên, môn dạy, lớp phụ trách, số điện thoại, email hoặc trạng thái.':'Nhập tên, môn dạy, lớp phụ trách, số điện thoại, email và trạng thái giáo viên.',field('Họ và tên giáo viên','name',a&&a.name,'Ví dụ: Nguyễn Văn An')+autocompleteField('Môn học','subject',a&&a.subject,'Gõ tên môn để tìm và chọn','subject')+field('Lớp được phân công','classId',a&&a.classId,'',{select:classOptions(a&&a.classId)})+field('Số điện thoại','phone',a&&a.phone,'09xx xxx xxx',{type:'tel'})+field('Email','email',teacherEmailOf(a||{name:''}),'',{type:'email',required:false,maxlength:254})+field('Trạng thái','status',teacherStatusOf(a||{name:''}),'',{select:teacherStatusOptions(teacherStatusOf(a||{name:''}))}),false);$('#modalRoot form').dataset.id=idValue||'';const status=$('#f-status'),email=$('#f-email');if(status)status.dataset.userChanged='false';if(email)email.dataset.userChanged='false'}
+    function openAssignmentModal(idValue){const a=data.assignments.find(x=>x.id===idValue);if(!activeClasses().length){toast('Hãy thêm lớp đang học trước khi phân công giáo viên.');return}modalForm('assignment',a?'Sửa hồ sơ giáo viên bộ môn':'Thêm giáo viên bộ môn',a?'Cập nhật tên, môn dạy, lớp phụ trách, số điện thoại, email hoặc trạng thái.':'Nhập tên, môn dạy, lớp phụ trách, số điện thoại, email và trạng thái giáo viên.',field('Họ và tên giáo viên','name',a&&a.name,'Ví dụ: Nguyễn Văn An')+autocompleteField('Môn học','subject',a&&a.subject,'Gõ tên môn để tìm và chọn','subject')+field('Lớp được phân công','classId','','',{select:'<option value="">Chọn môn học trước</option>'})+field('Số điện thoại','phone',a&&a.phone,'09xx xxx xxx',{type:'tel'})+field('Email','email',teacherEmailOf(a||{name:''}),'',{type:'email',required:false,maxlength:254})+field('Trạng thái','status',teacherStatusOf(a||{name:''}),'',{select:teacherStatusOptions(teacherStatusOf(a||{name:''}))}),false);$('#modalRoot form').dataset.id=idValue||'';$('#f-classId').setAttribute('aria-describedby','assignmentClassHelp');$('#f-classId').insertAdjacentHTML('afterend','<small id="assignmentClassHelp" class="field-help" role="status"></small>');refreshAssignmentClasses(a?a.classId:'');const status=$('#f-status'),email=$('#f-email');if(status)status.dataset.userChanged='false';if(email)email.dataset.userChanged='false'}
     function openSubjectModal(subject){const existing=subjectNames().find(x=>x.toLocaleLowerCase('vi')===String(subject||'').toLocaleLowerCase('vi'));modalForm('subject',existing?'Chỉnh sửa môn học':'Thêm môn học',existing?'Cập nhật tên môn học trong danh mục.':'Thêm môn để gợi ý khi xếp thời khóa biểu.',field('Tên môn học','name',existing||'','Ví dụ: Toán',{maxlength:60}),false);$('#modalRoot form').dataset.id=existing||''}
     function deleteSubject(subject){if(subjectIsUsed(subject)){toast('Môn học đang được dùng. Hãy cập nhật các tiết học, phân công và thành tích trước khi xóa.');return}if(!confirm('Xóa môn '+subject+' khỏi danh mục?'))return;data.subjects=data.subjects.filter(x=>x.toLocaleLowerCase('vi')!==String(subject).toLocaleLowerCase('vi'));save();render();toast('Đã xóa môn học.')}
     function teacherDirectory(){
@@ -550,6 +561,8 @@
     document.addEventListener('input',e=>{const form=e.target.closest('form');if(form?.dataset.form!=='assignment')return;if(e.target.id==='f-email'){e.target.dataset.userChanged='true';return}if(e.target.id!=='f-name')return;const key=teacherStatusKey(e.target.value),status=$('#f-status'),email=$('#f-email');if(status&&status.dataset.userChanged!=='true'){const saved=data.teacherStatuses[key];status.value=['Đang giảng dạy','Đã nghỉ hưu','Đã chuyển công tác'].includes(saved)?saved:'Đang giảng dạy'}if(email&&email.dataset.userChanged!=='true'){const saved=data.teacherEmails[key];if(saved!==undefined)email.value=String(saved||'');else if(!form.dataset.id)email.value=''}});
     document.addEventListener('change',e=>{if(e.target.id==='f-status'&&e.target.closest('form')?.dataset.form==='assignment')e.target.dataset.userChanged='true'});
     document.addEventListener('compositionend',e=>{if(e.target.id==='f-birthDate')maskBirthDateInput(e.target)});
+    document.addEventListener('input',e=>{if(e.target.id==='f-subject')refreshAssignmentClasses()});
+    document.addEventListener('change',e=>{if(e.target.id==='f-subject')refreshAssignmentClasses()});
     document.addEventListener('change',e=>{if(e.target.id==='f-grade'){const nameInput=$('#f-name'),suffix=nameInput.value.trim().replace(/\s+/g,'').replace(/^\d{1,2}/,'');const next=gradeNumber(e.target.value)+suffix;nameInput.value=next;nameInput.setSelectionRange(next.length,next.length);updateClassCohortHelp()}if(e.target.id==='scheduleClass'){selectedClass=e.target.value;render()}if(e.target.id==='examFilter'){selectedExam=e.target.value;render()}if(e.target.id==='f-classId')refreshScheduleTeacherChoices();if(e.target.id==='f-teacher'||e.target.id==='f-day'||e.target.id==='f-period')refreshScheduleTeacherDetails()});
     document.addEventListener('submit',e=>{
       const form=e.target.closest('[data-form]');if(!form)return;e.preventDefault();const f=new FormData(form),kind=form.dataset.form,recordId=form.dataset.id;
@@ -586,7 +599,7 @@
         const values={name:String(f.get('name')||'').trim(),subject:cleanSubject(f.get('subject')),classId:String(f.get('classId')||''),phone:String(f.get('phone')||'').trim()},status=String(f.get('status')||''),email=String(f.get('email')||'').trim();
         if(!values.name){showError('Vui lòng nhập tên giáo viên.');return}if(!$('#f-status')||!['Đang giảng dạy','Đã nghỉ hưu','Đã chuyển công tác'].includes(status)){showError('Vui lòng chọn trạng thái giáo viên hợp lệ.');return}if($('#f-subject').dataset.selected!=='true'){showError('Vui lòng chọn môn học từ danh sách gợi ý.');return}if(!activeClasses().some(c=>c.id===values.classId)){showError('Vui lòng chọn lớp đang học.');return}
         if(email&&$('#f-email')&&!$('#f-email').validity.valid){showError('Vui lòng nhập địa chỉ email hợp lệ.');return}
-        const duplicate=data.assignments.some(a=>a.id!==recordId&&a.name.toLowerCase()===values.name.toLowerCase()&&a.subject===values.subject&&a.classId===values.classId);if(duplicate){showError('Giáo viên này đã được phân công môn học đó cho lớp đã chọn.');return}
+        const duplicate=assignmentForSubject(values.classId,values.subject,recordId);if(duplicate){refreshAssignmentClasses();showError('Lớp '+className(values.classId)+' đã có '+(duplicate.name||'giáo viên')+' phụ trách môn '+values.subject+'. Hãy chọn lớp khác hoặc sửa phân công hiện có.');return}
         rememberSubject(values.subject);data.teacherStatuses[teacherStatusKey(values.name)]=status;data.teacherEmails[teacherStatusKey(values.name)]=email;upsertGlobalTeacher(values,status,email);if(recordId)Object.assign(data.assignments.find(a=>a.id===recordId),values);else data.assignments.push({id:id(),...values});save();closeModal();render();toast(recordId?'Đã cập nhật phân công.':'Đã phân công giáo viên.');
       }
       if(kind==='subject'){
@@ -634,7 +647,7 @@
   <script src="auth-config.js" defer></script>
   <script src="portal-config.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js" integrity="sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O" crossorigin="anonymous" defer></script>
-  <script src="cloud-sync.js" defer></script>
+  <script src="cloud-sync.js?v=assignment1" defer></script>
   <script src="workspace-sync.js" defer></script>
   <script src="teacher-access.js" defer></script>
   <script src="auth.js?v=teacher1" defer></script>
