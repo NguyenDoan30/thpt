@@ -44,7 +44,7 @@ async function startStaticTestServer(root, files) {
 }
 
 async function startTestServer() {
-  return startStaticTestServer(path.join(__dirname, '..'), ['index.html', 'auth.js', 'auth-config.js', 'cloud-sync.js', 'workspace-sync.js', 'teacher.html', 'teacher-access.js', 'teacher-access.css', 'portal-config.js', 'teacher-redirect.js', 'supabase/teacher-portal.sql']);
+  return startStaticTestServer(path.join(__dirname, '..'), ['index.html', 'auth.js', 'auth-config.js', 'cloud-sync.js', 'workspace-sync.js', 'teacher.html', 'teacher-access.js', 'teacher-access.css', 'teacher-details.js', 'teacher-details.css', 'portal-config.js', 'teacher-redirect.js', 'supabase/teacher-portal.sql']);
 }
 
 async function startTeacherTestServer() {

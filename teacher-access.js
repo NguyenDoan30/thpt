@@ -4,7 +4,7 @@
   const hooks = window.schoolAppAuthHooks;
   if (!hooks) return;
   let client = null, userId = null, generation = 0, sessionAbort = new AbortController();
-  let grants = [], busy = false, modalVersion = 0;
+  let grants = [], busy = false, modalVersion = 0, selectedTeacher = '';
   const $ = selector => document.querySelector(selector);
   const current = token => token === generation && userId && !$('#appRoot').hidden;
   const assertCurrent = token => { if (!current(token)) throw new Error('teacher_access_cancelled'); };
@@ -68,7 +68,7 @@
     root.innerHTML = '<div class="teacher-access-setup"><h3>Cài đặt quyền truy cập giáo viên</h3><p>Cơ sở dữ liệu chưa có phần phân quyền giáo viên. Sao chép SQL cài đặt bên dưới, mở SQL Editor của dự án và bấm Run. Sau khi thấy Success, quay lại đây bấm “Kiểm tra lại”.</p><div class="teacher-access-actions"><button class="btn btn-primary" type="button" data-access-copy-sql>Sao chép SQL cài đặt</button><a class="btn btn-secondary" href="' + projectLink('sql/new') + '" target="_blank" rel="noopener">Mở SQL Editor ↗</a><button class="btn btn-secondary" type="button" data-access-reload>Kiểm tra lại</button></div><textarea id="teacherAccessSQL" aria-label="SQL cài đặt trang giáo viên" readonly hidden></textarea><p id="teacherAccessMessage" role="status" class="teacher-access-message"></p></div>';
     root.querySelector('button')?.focus({preventScroll: true});
   }
-  async function load(version = modalVersion) {
+  async function load(version = modalVersion, selected = selectedTeacher) {
     const token = generation;
     const root = $('#teacherAccessContent'); if (!root) return;
     root.innerHTML = '<p class="teacher-access-loading" role="status">Đang tải tài khoản giáo viên…</p>';
@@ -76,7 +76,7 @@
       const rows = await request('list_school_teacher_access', {}, token);
       if (version !== modalVersion || !root.isConnected) return;
       if (!Array.isArray(rows)) throw new Error('Invalid teacher access response');
-      grants = rows; busy = false; renderContent();
+      grants = rows; busy = false; renderContent(selected);
     } catch (error) {
       if (!current(token) || version !== modalVersion || !root.isConnected) return;
       if (schemaMissing(error)) setup();
@@ -102,13 +102,25 @@
       setBusy(false); if (schemaMissing(error)) setup(); else notice(message(error));
     }
   }
+  function openTeacherAccess(name) {
+    if (!userId || $('#appRoot').hidden) return;
+    if (name && !teacherDirectory().some(person => teacherIdentityKey(person.name) === teacherIdentityKey(name) && person.status === 'Đang giảng dạy')) { toast('Chỉ liên kết tài khoản với giáo viên đang giảng dạy.'); return; }
+    ++modalVersion; busy = false; selectedTeacher = name || '';
+    openModal('Tài khoản giáo viên', 'Quản lý đăng nhập riêng và quyền xem dữ liệu của từng giáo viên.', '<div id="teacherAccessContent" class="teacher-access-content"></div>', true);
+    load(modalVersion, name);
+  }
+  window.schoolTeacherAccounts = {
+    async getForTeacher(name) {
+      const token = generation;
+      const rows = await request('list_school_teacher_access', {}, token);
+      if (!Array.isArray(rows)) throw new Error('Invalid teacher access response');
+      return rows.find(item => teacherIdentityKey(item.teacher_name) === teacherIdentityKey(name)) || null;
+    },
+    usersUrl() { return projectLink('auth/users'); },
+    open: openTeacherAccess,
+  };
   document.addEventListener('click', event => {
-    if (event.target.closest('[data-teacher-access-open]')) {
-      if (!userId || $('#appRoot').hidden) return;
-      ++modalVersion; busy = false;
-      openModal('Tài khoản giáo viên', 'Quản lý đăng nhập riêng và quyền xem dữ liệu của từng giáo viên.', '<div id="teacherAccessContent" class="teacher-access-content"></div>', true);
-      load();
-    }
+    if (event.target.closest('[data-teacher-access-open]')) openTeacherAccess();
     if (event.target.closest('[data-access-reload]')) load();
     const revoke = event.target.closest('[data-access-revoke]');
     if (revoke) mutate(revoke.dataset.accessRevoke, '', false);
@@ -131,6 +143,7 @@
   document.addEventListener('change', event => {
     if (event.target.id !== 'accessTeacher') return;
     const name = event.target.value, grant = grants.find(item => teacherIdentityKey(item.teacher_name) === teacherIdentityKey(name));
+    selectedTeacher = name;
     $('#accessEmail').value = grant?.email || globalTeacherProfile(name)?.email || '';
   });
   window.schoolAppAuthHooks = {
@@ -140,6 +153,6 @@
       try { await hooks.prepare(user, nextClient); } catch (error) { if (token === generation) { userId = client = null; sessionAbort.abort(); } throw error; }
     },
     unlock(user) { hooks.unlock(user); },
-    lock() { ++generation; ++modalVersion; sessionAbort.abort(); userId = client = null; grants = []; busy = false; hooks.lock(); },
+    lock() { ++generation; ++modalVersion; sessionAbort.abort(); userId = client = null; grants = []; busy = false; selectedTeacher = ''; hooks.lock(); },
   };
 })();
