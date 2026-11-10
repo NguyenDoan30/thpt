@@ -1,0 +1,3 @@
+# Teacher source is deployed independently, not as part of the management site.
+exclude:
+  - teacher-site

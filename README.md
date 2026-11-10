@@ -16,7 +16,7 @@ Màn hình đăng nhập dùng Supabase Auth để xác thực email và mật k
 4. Đặt Site URL của dự án thành `https://nguyendoan30.github.io/thpt/`.
 5. Lấy Project URL và **Publishable key** công khai trong cấu hình API của dự án, điền vào `auth-config.js`. Khóa `anon` cũ cũng được hỗ trợ. **Không** dùng khóa `service_role`, `sb_secret_…`, mật khẩu cơ sở dữ liệu hoặc khóa bí mật trong website công khai.
 6. Chạy một lần [mã SQL thiết lập đồng bộ](supabase/sync.sql) trong SQL Editor theo [hướng dẫn Supabase](supabase/README.md).
-7. Triển khai toàn bộ tệp HTML, JavaScript, CSS và thư mục `supabase` cùng nhau. Kiểm tra đăng nhập bằng tài khoản đã cấp trên máy tính và điện thoại.
+7. Triển khai các tệp HTML, JavaScript, CSS ở thư mục gốc và thư mục `supabase` lên website quản lý. Website giáo viên được xuất bản riêng từ thư mục `teacher-site`, không gộp vào màn hình đăng nhập quản lý. Kiểm tra đăng nhập bằng tài khoản đã cấp trên máy tính và điện thoại.
 
 Thư viện Supabase được ghim phiên bản và có kiểm tra toàn vẹn khi tải. Phiên đăng nhập được dịch vụ quản lý; nút **Đăng xuất** đóng giao diện và đăng xuất trên thiết bị hiện tại.
 
@@ -32,7 +32,12 @@ Khi mất mạng, các thay đổi chưa gửi được vẫn được giữ tro
 
 ## Trang dành cho giáo viên
 
-Mở [teacher.html](teacher.html), hoặc chọn **Đăng nhập dành cho giáo viên** ở màn hình đăng nhập. Giáo viên dùng tài khoản riêng và chỉ được xem lịch dạy, lớp được phân công/chủ nhiệm, danh sách học sinh và hồ sơ của mình. Trang dùng dữ liệu đã đồng bộ của nhà trường; không tạo dữ liệu mẫu riêng cho giáo viên và không cấp quyền sửa trang quản lý. Quyền được lọc ở máy chủ; số CCCD học sinh không được gửi sang trang giáo viên.
+Website quản lý và website giáo viên được xuất bản ở hai địa chỉ độc lập, có màn hình đăng nhập và phiên đăng nhập riêng. Màn hình quản lý không có nút chuyển sang đăng nhập giáo viên. Địa chỉ website giáo viên được khai báo công khai trong `portal-config.js`; liên kết `teacher.html` cũ chỉ chuyển tới địa chỉ mới.
+
+- Website quản lý: https://nguyendoan30.github.io/thpt/
+- Website giáo viên: https://thpt-le-quy-don-giao-vien.twinmonk2.chatgpt.site/
+
+Giáo viên mở địa chỉ website riêng do nhà trường cung cấp, dùng tài khoản riêng và chỉ được xem lịch dạy, lớp được phân công/chủ nhiệm, danh sách học sinh và hồ sơ của mình. Hai website kết nối cùng dự án Supabase để dùng dữ liệu đã đồng bộ của nhà trường; không tạo dữ liệu mẫu riêng cho giáo viên và không cấp quyền sửa trang quản lý. Quyền được lọc ở máy chủ; số CCCD học sinh không được gửi sang website giáo viên.
 
 Thiết lập một lần:
 
@@ -42,6 +47,8 @@ Thiết lập một lần:
 4. Giáo viên mở trang riêng và đăng nhập. Nếu được cấp quyền ở nhiều trường, giáo viên có thể chọn trường. Năm học và danh sách lớp theo dữ liệu được nhà trường phân công.
 
 **Thu hồi quyền** ngừng quyền đọc ở lần yêu cầu tiếp theo. Hồ sơ nghỉ hưu/chuyển công tác hoặc bị xóa cũng không còn quyền xem. Khi đổi email đăng nhập hoặc tên hồ sơ, quản lý cần cập nhật liên kết; thay email liên hệ trong hồ sơ không tự thay quyền. Trang giáo viên lưu phiên đăng nhập riêng với trang quản lý, nên có thể sử dụng hai tài khoản trong cùng trình duyệt. Dữ liệu lớp/học sinh chỉ giữ trong bộ nhớ trang và được xóa khi khóa/đăng xuất.
+
+Mã nguồn triển khai độc lập nằm trong `teacher-site/`. Xuất bản nội dung thư mục này làm gốc của website giáo viên; chỉ gồm giao diện giáo viên, thư viện đăng nhập và cấu hình Supabase công khai, không kèm các chức năng quản lý. `_config.yml` loại thư mục nguồn này khỏi website quản lý trên GitHub Pages. Khi thay đổi `auth.js` hoặc Project URL/Publishable key, cập nhật bản tương ứng trong `teacher-site/` rồi xuất bản lại website giáo viên. Không cần sao chép dữ liệu giữa hai website hoặc chạy lại SQL khi đổi địa chỉ hosting.
 
 ## Tính năng
 

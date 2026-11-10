@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#183b36">
+  <meta name="description" content="Trang dành cho giáo viên: lịch dạy, lớp phụ trách và danh sách học sinh được nhà trường phân công.">
+  <title>Cổng giáo viên — Trường THPT</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="teacher-portal.css?v=1">
+</head>
+<body>
+  <svg class="svg-defs" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="i-school" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7M5 9v12h14V9M9 21v-7h6v7M9 10h6"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18M8 15h2M14 15h2M8 18h2"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 4h13a2 2 0 0 1 2 2v15H6a2 2 0 0 1-2-2zm0 13h15M8 8h7M8 11h5"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 21v-2a6 6 0 0 1 12 0v2M17 5a3 3 0 0 1 0 6M21 21v-2a6 6 0 0 0-4-5"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5M5.2 8a7 7 0 0 1 11.6-3L20 8M4 16l3.2 3A7 7 0 0 0 19 16"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+  </svg>
+  <section class="auth-screen" id="authScreen" aria-labelledby="loginTitle">
+    <div class="auth-card">
+      <div class="auth-brand"><div class="brand-mark"><svg aria-hidden="true"><use href="#i-school"/></svg></div><div><div class="auth-school-name">CỔNG GIÁO VIÊN</div><div class="brand-sub">Kết nối cùng nhà trường</div></div></div>
+      <div class="eyebrow">Không gian dành cho thầy cô</div><h1 id="loginTitle">Đăng nhập giáo viên</h1><p class="auth-intro">Xem lịch dạy, lớp phụ trách và học sinh của mình bằng tài khoản được nhà trường cấp.</p>
+      <form id="loginForm">
+        <div class="field"><label for="loginEmail">Email</label><input id="loginEmail" name="email" type="email" autocomplete="username" placeholder="Nhập email giáo viên" required maxlength="254" disabled></div>
+        <div class="field"><label for="loginPassword">Mật khẩu</label><div class="auth-password"><input id="loginPassword" name="password" type="password" autocomplete="current-password" placeholder="Nhập mật khẩu" required maxlength="256" disabled><button id="loginPasswordToggle" type="button" aria-label="Hiện mật khẩu" aria-pressed="false">Hiện</button></div></div>
+        <p class="auth-error" id="loginError" role="alert" hidden></p><p class="auth-status" id="loginStatus" role="status">Đang kết nối dịch vụ đăng nhập…</p>
+        <button class="btn btn-primary auth-submit" id="loginSubmit" type="submit" disabled>Đăng nhập</button><button class="btn btn-secondary auth-submit" id="loginRetry" type="button" hidden>Thử lại</button>
+      </form>
+      <p class="auth-help">Chưa có tài khoản hoặc quên mật khẩu? Vui lòng liên hệ quản trị viên nhà trường.</p>
+    </div>
+  </section>
+  <div class="app" id="appRoot" hidden>
+    <aside class="sidebar" id="teacherSidebar">
+      <div class="brand"><div class="brand-mark" id="schoolMark"><svg aria-hidden="true"><use href="#i-school"/></svg></div><div class="brand-copy"><div id="schoolName" class="brand-name">Cổng giáo viên</div><div class="brand-sub">Không gian giáo viên</div></div></div>
+      <div class="nav-label">Không gian làm việc</div>
+      <nav class="nav" aria-label="Điều hướng giáo viên">
+        <button class="nav-btn active" type="button" data-teacher-view="schedule"><svg aria-hidden="true"><use href="#i-calendar"/></svg><span>Lịch dạy</span></button>
+        <button class="nav-btn" type="button" data-teacher-view="classes"><svg aria-hidden="true"><use href="#i-book"/></svg><span>Lớp phụ trách</span></button>
+        <button class="nav-btn" type="button" data-teacher-view="profile"><svg aria-hidden="true"><use href="#i-user"/></svg><span>Hồ sơ của tôi</span></button>
+      </nav>
+      <div class="side-bottom"><div class="side-note"><svg aria-hidden="true"><use href="#i-book"/></svg><strong>Đồng hành cùng học sinh</strong><p>Lịch dạy và lớp học được cập nhật từ phân công của nhà trường.</p></div><div class="account"><div class="account-avatar" id="teacherInitials">GV</div><div><div id="currentAccountName" class="account-email"></div><div class="account-role">Tài khoản giáo viên</div></div></div><button class="logout-btn" id="logoutButton" type="button">Đăng xuất</button></div>
+    </aside>
+    <button class="sidebar-backdrop" id="teacherBackdrop" type="button" aria-label="Đóng menu" hidden></button>
+    <main class="main">
+      <header class="topbar"><button class="icon-button mobile-menu" id="teacherMenu" type="button" aria-label="Mở menu" aria-controls="teacherSidebar" aria-expanded="false"><svg aria-hidden="true"><use href="#i-menu"/></svg></button><div class="breadcrumb">Không gian giáo viên <span aria-hidden="true">/</span> <strong id="teacherBreadcrumb">Lịch dạy</strong></div><div class="header-filters"><label class="sr-only" for="teacherSchool">Trường học</label><select id="teacherSchool" hidden></select><label class="sr-only" for="teacherYear">Năm học</label><select id="teacherYear" hidden></select><button class="icon-button" id="teacherRefresh" type="button" title="Cập nhật dữ liệu" aria-label="Cập nhật dữ liệu"><svg aria-hidden="true"><use href="#i-refresh"/></svg></button></div></header>
+      <div class="status-line"><span id="teacherStatus" role="status">Đang tải dữ liệu…</span></div>
+      <div id="teacherPage" class="page"></div>
+    </main>
+  </div>
+  <div id="teacherRosterRoot"></div>
+  <script src="auth-config.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js" integrity="sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O" crossorigin="anonymous" defer></script>
+  <script src="teacher-portal.js?v=1" defer></script>
+  <script src="auth.js?v=teacher1" defer></script>
+</body>
+</html>

@@ -9,11 +9,22 @@ không bị thay thế.
    có thể tiếp tục tắt.
 2. Đăng nhập trang quản lý, chờ trạng thái **Đã đồng bộ**, rồi liên kết email
    tài khoản vừa tạo với đúng hồ sơ giáo viên trong phần quản lý quyền truy cập.
-3. Giáo viên mở `teacher.html` và đăng nhập bằng tài khoản riêng đó. Nếu có quyền
-   ở nhiều trường, giáo viên chọn trường muốn xem.
+3. Giáo viên mở website giáo viên có địa chỉ riêng do nhà trường cung cấp và
+   đăng nhập bằng tài khoản riêng đó. Nếu có quyền ở nhiều trường, giáo viên
+   chọn trường muốn xem. Liên kết `teacher.html` cũ chỉ chuyển tới địa chỉ mới.
 
 Không dùng tài khoản quản lý làm tài khoản giáo viên. Không gửi mật khẩu hoặc
 khóa bí mật qua trò chuyện hay đưa vào mã website.
+
+Hai website dùng chung dự án Supabase và các hàm bên dưới, dù được hosting ở
+hai địa chỉ độc lập. Không cần sao chép dữ liệu hoặc chạy lại SQL khi tách
+website. Website quản lý cấp/thu hồi liên kết; website giáo viên chỉ gọi các
+hàm đọc dữ liệu theo quyền. Mã triển khai giáo viên nằm trong `teacher-site/`,
+địa chỉ công khai mới được khai báo trong `portal-config.js` của website quản lý.
+
+Website quản lý: https://nguyendoan30.github.io/thpt/
+
+Website giáo viên: https://thpt-le-quy-don-giao-vien.twinmonk2.chatgpt.site/
 
 ## Phạm vi dữ liệu
 
