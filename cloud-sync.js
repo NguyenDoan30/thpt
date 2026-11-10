@@ -89,6 +89,23 @@
         });
       };
       collisions('schedule', row => row.classId && Number.isFinite(Number(row.day)) && Number.isFinite(Number(row.period)) ? JSON.stringify([String(row.classId), Number(row.day), Number(row.period)]) : null, 'schedule_cell');
+      const assignmentKey = row => {
+        const subject = String(row.subject || '').trim().replace(/\s+/g, ' ').toLocaleLowerCase('vi');
+        return row.classId && subject ? JSON.stringify([String(row.classId), subject]) : null;
+      };
+      const originalAssignments = new Map(), mergedAssignments = new Map();
+      for (const [items, target] of [[rows(base && base.years && base.years[year], 'assignments'), originalAssignments], [rows(record, 'assignments'), mergedAssignments]]) items.forEach(row => {
+        const key = assignmentKey(row); if (!key) return;
+        if (!target.has(key)) target.set(key, []);
+        target.get(key).push(row);
+      });
+      mergedAssignments.forEach((items, key) => {
+        if (items.length < 2) return;
+        const previousIds = new Set((originalAssignments.get(key) || []).map(row => String(row.id)));
+        // Preserve unchanged legacy duplicates; only newly combined assignments
+        // need a class-bundle choice before they can reach the other device.
+        if (items.some(row => !previousIds.has(String(row.id)))) affected.set(String(items[0].classId), 'assignment_subject');
+      });
       collisions('studentProfiles', row => String(row.cccd || '').trim(), 'student_cccd');
       collisions('classes', row => row.name ? JSON.stringify([String(row.name).toLowerCase(), row.admissionYear]) : null, 'class_identity', 'id');
       affected.forEach((reason, classId) => { if (!bundles.some(bundle => bundle.year === year && bundle.classId === classId)) bundles.push({year, classId, reason}); });

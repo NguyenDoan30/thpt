@@ -70,6 +70,10 @@ async function runSemanticMergeTests() {
       record(local).schedule.push({ id: 'local-slot', classId: 'a', day: 1, period: 1, subject: 'Toán' });
       record(remote).schedule.push({ id: 'remote-slot', classId: 'a', day: 1, period: 1, subject: 'Văn' });
     } },
+    { name: 'different teachers for one class and normalized subject', reason: 'assignment_subject', edit(base, local, remote) {
+      record(local).assignments.push({ id: 'local-assignment', classId: 'a', name: 'Local teacher', subject: '  Giáo dục   thể chất ' });
+      record(remote).assignments.push({ id: 'remote-assignment', classId: 'a', name: 'Remote teacher', subject: 'giáo dục thể chất' });
+    } },
     { name: 'duplicate identity numbers across classes', reason: 'student_cccd', edit(base, local, remote) {
       record(local).studentProfiles.push({ id: 'local-student', classId: 'a', cccd: '012345678901' });
       record(remote).studentProfiles.push({ id: 'remote-student', classId: 'b', cccd: '012345678901' });
@@ -100,7 +104,21 @@ async function runSemanticMergeTests() {
   const ordinary = fixture(), local = copy(ordinary), remote = copy(ordinary);
   local.school.name = 'Local school'; record(remote).classes[2].room = 'Remote room';
   assert.equal(api.mergeStates(ordinary, local, remote).conflicts.length, 0, 'An archived honor with no current class must not create a false conflict');
-  console.log('PASS: orphaned class records, roster capacity and timetable/student/class uniqueness require explicit valid bundle choices.');
+  record(local).assignments.push({ id: 'local-math', classId: 'a', name: 'Math teacher', subject: 'Toán' });
+  record(remote).assignments.push({ id: 'remote-physics', classId: 'a', name: 'Physics teacher', subject: 'Vật lý' }, { id: 'remote-other-class-math', classId: 'b', name: 'Other math teacher', subject: 'Toán' });
+  const disjoint = copy(api.mergeStates(ordinary, local, remote));
+  assert.equal(disjoint.conflicts.length, 0, 'Different subjects in one class and the same subject in different classes must still merge');
+  assert.equal(record(disjoint.snapshot).assignments.length, 3);
+  const legacy = fixture();
+  record(legacy).assignments.push({ id: 'legacy-math-one', classId: 'a', name: 'First old teacher', subject: 'Toán' }, { id: 'legacy-math-two', classId: 'a', name: 'Second old teacher', subject: 'Toán' });
+  const legacyLocal = copy(legacy), legacyRemote = copy(legacy);
+  legacyLocal.school.name = 'Unrelated local edit'; record(legacyRemote).classes[2].room = 'Unrelated remote edit';
+  const legacyResult = copy(api.mergeStates(legacy, legacyLocal, legacyRemote));
+  assert.equal(legacyResult.conflicts.length, 0, 'Unchanged legacy assignment duplicates must not block unrelated edits');
+  assert.deepEqual(record(legacyResult.snapshot).assignments, record(legacy).assignments, 'Legacy duplicates must not be rewritten or dropped');
+  record(legacyRemote).assignments.push({ id: 'new-third-math', classId: 'a', name: 'New teacher', subject: 'toán' });
+  assert.ok(api.mergeStates(legacy, legacyLocal, legacyRemote).conflicts.some(item => item.reason === 'assignment_subject'), 'A new assignment must not extend a legacy duplicate group silently');
+  console.log('PASS: orphaned class records, roster capacity and timetable/assignment/student/class uniqueness require explicit valid bundle choices.');
 }
 
 module.exports = { runSemanticMergeTests };

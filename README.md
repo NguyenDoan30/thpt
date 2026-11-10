@@ -56,6 +56,7 @@ Mã nguồn triển khai độc lập nằm trong `teacher-site/`. Xuất bản 
 - Lưu giáo viên chủ nhiệm và phòng học cho từng lớp.
 - Mở “Xem học sinh” trong từng lớp để xem, thêm, sửa và xóa hồ sơ. Sáu lớp mẫu có danh sách học sinh mẫu theo sĩ số, được gắn nhãn **Mẫu**, ngày sinh giả lập và để trống CCCD.
 - Phân công, cập nhật, xóa giáo viên bộ môn theo lớp.
+- Khi phân công, chọn môn học trước; danh sách lớp chỉ hiển thị các lớp chưa có giáo viên môn đó. Mỗi lớp có một phân công cho mỗi môn; sửa hoặc xóa phân công cũ khi thay giáo viên.
 - Xếp, sửa, xóa tiết học theo lớp, thứ và tiết; chặn trùng khung giờ.
 - Vinh danh học sinh theo kỳ thi, môn học, điểm và danh hiệu.
 - Tự lên lớp theo khóa tuyển sinh: lớp 10 → 11 → 12, tốt nghiệp từ năm học thứ tư.
