@@ -1,8 +1,6 @@
 (() => {
   'use strict';
 
-  const MANUAL_LOCK_KEY = 'thpt-school-auth-manually-locked-v1';
-
   function start() {
     const app = document.getElementById('appRoot');
     const screen = document.getElementById('authScreen');
@@ -18,6 +16,7 @@
     const accountName = document.getElementById('currentAccountName');
     const hooks = window.schoolAppAuthHooks;
     if (!app || !screen || !form || !hooks) return;
+    const MANUAL_LOCK_KEY = 'thpt-school-auth-manually-locked-v1' + (hooks.authStorageKey ? ':' + hooks.authStorageKey : '');
 
     let client = null;
     let subscription = null;
@@ -277,7 +276,7 @@
         if (subscription) subscription.unsubscribe();
         if (client) await client.auth.stopAutoRefresh();
         client = window.supabase.createClient(config.url, config.key, {
-          auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
+          auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, ...(hooks.authStorageKey ? {storageKey: hooks.authStorageKey} : {}) },
         });
         subscription = client.auth.onAuthStateChange(handleAuthState).data.subscription;
         ready = true;

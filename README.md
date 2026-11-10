@@ -16,19 +16,32 @@ Màn hình đăng nhập dùng Supabase Auth để xác thực email và mật k
 4. Đặt Site URL của dự án thành `https://nguyendoan30.github.io/thpt/`.
 5. Lấy Project URL và **Publishable key** công khai trong cấu hình API của dự án, điền vào `auth-config.js`. Khóa `anon` cũ cũng được hỗ trợ. **Không** dùng khóa `service_role`, `sb_secret_…`, mật khẩu cơ sở dữ liệu hoặc khóa bí mật trong website công khai.
 6. Chạy một lần [mã SQL thiết lập đồng bộ](supabase/sync.sql) trong SQL Editor theo [hướng dẫn Supabase](supabase/README.md).
-7. Triển khai các tệp `index.html`, `auth-config.js`, `auth.js`, `cloud-sync.js`, `workspace-sync.js` cùng nhau. Kiểm tra đăng nhập bằng tài khoản đã cấp trên máy tính và điện thoại.
+7. Triển khai toàn bộ tệp HTML, JavaScript, CSS và thư mục `supabase` cùng nhau. Kiểm tra đăng nhập bằng tài khoản đã cấp trên máy tính và điện thoại.
 
 Thư viện Supabase được ghim phiên bản và có kiểm tra toàn vẹn khi tải. Phiên đăng nhập được dịch vụ quản lý; nút **Đăng xuất** đóng giao diện và đăng xuất trên thiết bị hiện tại.
 
 ## Đồng bộ giữa các thiết bị
 
-Hai thiết bị đăng nhập **cùng một tài khoản** sẽ dùng chung toàn bộ năm học, lớp, học sinh, giáo viên, phân công, thời khóa biểu, danh mục môn học, thành tích, tên trường và ảnh đại diện. Mỗi tài khoản có dữ liệu riêng; tài khoản khác không đọc hoặc sửa bản dữ liệu này.
+Hai thiết bị đăng nhập **cùng một tài khoản quản lý** sẽ dùng chung toàn bộ năm học, lớp, học sinh, giáo viên, phân công, thời khóa biểu, danh mục môn học, thành tích, tên trường và ảnh đại diện. Mỗi tài khoản quản lý có dữ liệu riêng; giáo viên chỉ được xem phần dữ liệu đã được cấp quyền qua trang giáo viên.
 
 Lần đầu sử dụng, mở website trên thiết bị đang có dữ liệu muốn giữ, đăng nhập và chờ dòng **Đã đồng bộ** trước khi mở thiết bị khác. Website giữ một bản sao dữ liệu cũ theo tài khoản; có thể tải về bằng **Tải bản sao dữ liệu cũ**. Nếu thiết bị và máy chủ đã có hai bản khác nhau, giao diện hiển thị thông tin của hai bản để chọn, không âm thầm ghi đè.
 
 Thay đổi được lưu tự động. Thiết bị khác kiểm tra phiên bản mới mỗi 5 giây và khi quay lại trang; biểu mẫu đang nhập sẽ được giữ cho đến khi đóng. Các chỉnh sửa riêng ở hai thiết bị được gộp; nếu cùng sửa một thông tin, người dùng chọn phần cần giữ. Việc chọn năm đang xem là tùy chọn của từng thiết bị.
 
 Khi mất mạng, các thay đổi chưa gửi được vẫn được giữ trong bản chờ trên thiết bị để gửi lại. Chỉ dòng **Đã đồng bộ** mới xác nhận máy chủ đã lưu. Không xóa dữ liệu trình duyệt khi còn thay đổi chờ; đăng nhập hoặc khôi phục phiên vẫn cần kết nối mạng.
+
+## Trang dành cho giáo viên
+
+Mở [teacher.html](teacher.html), hoặc chọn **Đăng nhập dành cho giáo viên** ở màn hình đăng nhập. Giáo viên dùng tài khoản riêng và chỉ được xem lịch dạy, lớp được phân công/chủ nhiệm, danh sách học sinh và hồ sơ của mình. Trang dùng dữ liệu đã đồng bộ của nhà trường; không tạo dữ liệu mẫu riêng cho giáo viên và không cấp quyền sửa trang quản lý. Quyền được lọc ở máy chủ; số CCCD học sinh không được gửi sang trang giáo viên.
+
+Thiết lập một lần:
+
+1. Chạy [SQL phân quyền giáo viên](supabase/teacher-portal.sql) sau `sync.sql` trong Supabase SQL Editor. Có thể vào **Giáo viên bộ môn → Tài khoản giáo viên → Sao chép SQL cài đặt** để sao chép trực tiếp.
+2. Tạo từng tài khoản email/mật khẩu, có xác nhận email, trong Supabase → Authentication → Users. Không dùng tài khoản quản lý làm tài khoản giáo viên.
+3. Trong trang quản lý, cập nhật hồ sơ và phân công giáo viên, chờ **Đã đồng bộ**, rồi vào **Tài khoản giáo viên**. Chọn đúng hồ sơ, nhập email đăng nhập và bấm **Liên kết tài khoản**.
+4. Giáo viên mở trang riêng và đăng nhập. Nếu được cấp quyền ở nhiều trường, giáo viên có thể chọn trường. Năm học và danh sách lớp theo dữ liệu được nhà trường phân công.
+
+**Thu hồi quyền** ngừng quyền đọc ở lần yêu cầu tiếp theo. Hồ sơ nghỉ hưu/chuyển công tác hoặc bị xóa cũng không còn quyền xem. Khi đổi email đăng nhập hoặc tên hồ sơ, quản lý cần cập nhật liên kết; thay email liên hệ trong hồ sơ không tự thay quyền. Trang giáo viên lưu phiên đăng nhập riêng với trang quản lý, nên có thể sử dụng hai tài khoản trong cùng trình duyệt. Dữ liệu lớp/học sinh chỉ giữ trong bộ nhớ trang và được xóa khi khóa/đăng xuất.
 
 ## Tính năng
 
@@ -63,6 +76,8 @@ Chạy `node tests/shared-login.cjs` để kiểm tra đăng nhập, khôi phụ
 Chạy `node tests/sample-students.cjs` để kiểm tra danh sách học sinh mẫu, chuyển đổi dữ liệu cũ, giữ hồ sơ đã nhập, xóa/tải lại và chuyển khóa qua các năm học.
 
 Chạy `node tests/cloud-sync.cjs` để kiểm tra hai phiên trình duyệt riêng, toàn bộ loại hồ sơ, lịch sử năm học, tên/ảnh, dữ liệu cũ, chờ mạng, sửa cùng lúc và tách dữ liệu giữa các tài khoản. Kiểm thử dùng dữ liệu giả, SDK thật và API giả lập; không đọc dữ liệu tài khoản đang dùng.
+
+Chạy `node tests/teacher-portal.cjs` để kiểm tra đăng nhập giáo viên, lịch/lớp/học sinh theo phân công, chuyển năm học, quyền truy cập và cấp/thu hồi liên kết trong trang quản lý.
 
 ## Lưu ý về dữ liệu
 

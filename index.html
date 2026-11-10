@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#183b36">
   <meta name="description" content="Cổng quản lý trường trung học phổ thông — lớp học, giáo viên, thời khóa biểu và thành tích học sinh.">
   <title>THPT An Bình — Cổng quản lý</title>
+  <link rel="stylesheet" href="teacher-access.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -71,6 +72,7 @@
       </form>
       <div class="auth-help">Chưa có tài khoản hoặc quên mật khẩu? Liên hệ quản trị viên nhà trường.</div>
       <p class="auth-note">Dữ liệu trường được đồng bộ khi đăng nhập cùng tài khoản.</p>
+      <a class="teacher-login-link" href="teacher.html">Đăng nhập dành cho giáo viên →</a>
     </div>
   </section>
   <div class="app" id="appRoot" hidden>
@@ -399,7 +401,7 @@
       if(searchText)list=list.filter(a=>(a.name+' '+(a.subject||'')+' '+(a.subjects||[]).join(' ')+' '+(a.profileOnly?'':className(a.classId))+' '+teacherStatusOf(a)+' '+teacherEmailOf(a)).toLowerCase().includes(searchText.toLowerCase()));
       const rows=list.length?list.map(a=>'<tr><td><div class="teacher-cell"><span class="mini-avatar">'+esc(initials(a.name))+'</span><div><strong style="display:block;color:#283a34">'+esc(a.name)+'</strong>'+(teacherPhoneOf(a)?'<small style="display:block;font-size:9px;color:#9aa59f">'+esc(teacherPhoneOf(a))+'</small>':'')+(teacherEmailOf(a)?'<small style="display:block;font-size:9px;color:#71817a">Email: '+esc(teacherEmailOf(a))+'</small>':'')+'</div></div></td><td>'+(a.profileOnly?'<span class="badge blue">Chưa phân công</span>'+((a.subjects||[]).length?'<small style="display:block;margin-top:4px;font-size:9px;color:#72817c">Môn từng dạy: '+esc(a.subjects.join(', '))+'</small>':''):'<span class="badge blue">'+esc(a.subject)+'</span>')+'</td><td>'+(a.profileOnly?'Chưa phân công năm học này':esc(className(a.classId)))+'</td><td>'+teacherWeeklySummary(a)+'</td><td>'+teacherStatusBadge(a)+'</td><td>'+(a.profileOnly?'<span style="font-size:9px;color:#72817c">Danh bạ dùng chung</span>':'<div class="row-actions"><button class="icon-btn" data-action="edit-assignment" data-id="'+esc(a.id)+'" aria-label="Sửa phân công">'+icon('edit')+'</button><button class="icon-btn delete" data-action="delete-assignment" data-id="'+esc(a.id)+'" aria-label="Xóa phân công">'+icon('trash')+'</button></div>')+'</td></tr>').join(''):'<tr><td colspan="6"><div class="empty"><strong>Chưa có giáo viên</strong>Thêm giáo viên bộ môn để lưu vào danh bạ dùng chung cho các năm học.</div></td></tr>';
       const subjects=new Set(assignments.map(a=>a.subject)).size,visibleTeachers=new Set(list.map(a=>teacherIdentityKey(a.name))).size,visibleAssignments=list.filter(a=>!a.profileOnly).length;
-      return pageHead('Giáo viên bộ môn','Danh bạ dùng chung giữa các năm học; phân công và lịch dạy được lưu theo từng năm.','<div class="head-actions">'+addButton('Thêm giáo viên bộ môn','add-assignment')+'</div>')+
+      return pageHead('Giáo viên bộ môn','Danh bạ dùng chung giữa các năm học; phân công và lịch dạy được lưu theo từng năm.','<div class="head-actions teacher-head-actions"><button class="btn btn-secondary" type="button" data-teacher-access-open>Tài khoản giáo viên</button>'+addButton('Thêm giáo viên bộ môn','add-assignment')+'</div>')+
         '<section class="surface"><div class="teacher-summary"><div class="summary-box"><strong>'+globalTeachers.length+'</strong><span>Giáo viên</span></div><div class="summary-box"><strong>'+subjects+'</strong><span>Môn học năm này</span></div><div class="summary-box"><strong>'+assignments.length+'</strong><span>Lượt phân công năm này</span></div></div><div class="toolbar" style="margin-top:13px"><div class="toolbar-left"><label class="search">'+icon('search')+'<input id="teacherSearch" type="search" placeholder="Tìm giáo viên, môn học, lớp…" value="'+esc(searchText)+'"></label></div><div class="toolbar-right"><span class="count-label">'+visibleTeachers+' giáo viên · '+visibleAssignments+' phân công</span></div></div><div class="table-wrap"><table><thead><tr><th>Giáo viên</th><th>Môn học</th><th>Lớp được phân công</th><th>Số tiết và ngày dạy</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>'+rows+'</tbody></table></div></section><div class="footer-note">Danh bạ giáo viên được giữ chung giữa các năm; phân công và thời khóa biểu được lưu riêng.</div>';
     }
     function renderSubjects(){
@@ -634,7 +636,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js" integrity="sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O" crossorigin="anonymous" defer></script>
   <script src="cloud-sync.js" defer></script>
   <script src="workspace-sync.js" defer></script>
-  <script src="auth.js?v=sync1" defer></script>
+  <script src="teacher-access.js" defer></script>
+  <script src="auth.js?v=teacher1" defer></script>
 </body>
 </html>
 

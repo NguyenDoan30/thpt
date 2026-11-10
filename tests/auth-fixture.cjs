@@ -33,10 +33,11 @@ async function startTestServer() {
   const server = http.createServer((request, response) => {
     const pathname = new URL(request.url, 'http://localhost').pathname;
     const filename = pathname === '/' ? 'index.html' : pathname.slice(1);
-    if (!['index.html', 'auth.js', 'auth-config.js', 'cloud-sync.js', 'workspace-sync.js'].includes(filename) || !fs.existsSync(path.join(root, filename))) {
+    if (!['index.html', 'auth.js', 'auth-config.js', 'cloud-sync.js', 'workspace-sync.js', 'teacher.html', 'teacher-portal.js', 'teacher-portal.css', 'teacher-access.js', 'teacher-access.css', 'supabase/teacher-portal.sql'].includes(filename) || !fs.existsSync(path.join(root, filename))) {
       response.writeHead(404); response.end(); return;
     }
-    response.writeHead(200, { 'Content-Type': filename.endsWith('.js') ? 'application/javascript' : 'text/html; charset=utf-8' });
+    const contentType = filename.endsWith('.js') ? 'application/javascript' : filename.endsWith('.css') ? 'text/css; charset=utf-8' : filename.endsWith('.sql') ? 'text/plain; charset=utf-8' : 'text/html; charset=utf-8';
+    response.writeHead(200, { 'Content-Type': contentType });
     response.end(fs.readFileSync(path.join(root, filename)));
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
