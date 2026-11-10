@@ -35,6 +35,7 @@
     .app[hidden],.auth-screen[hidden],.auth-screen [hidden]{display:none!important}.auth-screen{min-height:100dvh;display:grid;place-items:center;padding:32px 20px;background:radial-gradient(ellipse at 10% 10%,#e0ede6,transparent 60%),var(--canvas)}.auth-card{width:100%;max-width:440px;padding:32px;border:1px solid var(--line);border-radius:20px;background:#fff;box-shadow:0 18px 60px rgba(24,59,54,.08)}.auth-brand{display:flex;align-items:center;gap:12px;margin-bottom:34px}.auth-mark{width:48px;height:48px;flex:none;display:grid;place-items:center;overflow:hidden;border-radius:15px;background:#e3b666;color:var(--pine)}.auth-mark svg{width:28px;height:28px}.auth-mark img{width:100%;height:100%;object-fit:cover}.auth-school-name{font:800 15px var(--display);overflow-wrap:anywhere}.auth-brand>div:last-child{min-width:0}.auth-brand-sub{margin-top:4px;font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}.auth-card h1{margin:0;font:800 28px var(--display);letter-spacing:-.04em}.auth-intro{margin:10px 0 26px;font-size:13px;line-height:1.6;color:var(--muted)}.auth-card .field{margin-top:17px}.auth-card .field label{font-size:12px}.auth-card .field input{font-size:14px;padding:12px 13px}.auth-card .field input:disabled{background:#f5f7f5;color:var(--muted)}.auth-password{position:relative}.auth-password input{padding-right:65px!important}.auth-password button{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;border-radius:5px;padding:7px;background:transparent;color:var(--pine-2);font-size:11px;font-weight:700}.auth-submit{width:100%;font-size:14px;padding:13px;margin-top:18px}.auth-submit:disabled{opacity:.6;cursor:wait;transform:none}.auth-error{font-size:12px;line-height:1.6;color:var(--red);background:var(--red-bg);border-radius:8px;padding:10px 12px;margin:16px 0 0}.auth-status{font-size:11px;line-height:1.5;color:var(--muted);margin:12px 0 0}.auth-help{margin-top:22px;padding-top:20px;border-top:1px solid var(--line);font-size:11px;line-height:1.6;color:#62756c}.auth-note{margin:14px 0 0;font-size:10px;line-height:1.5;color:var(--muted)}.logout-btn{width:100%;margin-top:12px;padding:9px;border:1px solid rgba(255,255,255,.15);border-radius:8px;background:transparent;color:#c5d7d0;font-size:11px;font-weight:700}.logout-btn:hover{background:rgba(255,255,255,.08);color:white}.logout-btn:focus-visible{outline:2px solid #e4ad5a;outline-offset:3px}.user-chip>div:last-child{min-width:0}.user-name{overflow-wrap:anywhere}@media(max-width:430px){.auth-screen{padding:20px 16px}.auth-card{padding:26px 22px}.auth-brand{margin-bottom:28px}.auth-card h1{font-size:26px}}
     .class-name-cell .class-roster-link{color:var(--pine-2);font-size:10px;font-weight:700;margin-top:5px}.roster-count{display:block;margin-top:5px;color:var(--muted);font-size:9px}.sample-roster-note{padding:12px 15px;border:1px solid #f0dfbd;border-radius:10px;background:var(--gold-bg);color:#83612f;font-size:11px;line-height:1.6}.student-head-actions{flex-wrap:wrap;justify-content:flex-end}.student-head-actions .seed-sample-btn{white-space:normal}@media(max-width:760px){.student-head-actions{flex-direction:column;align-items:flex-end}.student-head-actions .seed-sample-btn{max-width:130px}}@media(max-width:430px){.page-head .student-head-actions .seed-sample-btn{width:auto;height:auto;padding:9px 10px}}
     .sidebar-backdrop{display:none;position:fixed;inset:0;z-index:4;width:100%;height:100%;padding:0;border:0;background:transparent;cursor:default}@media(max-width:760px){.sidebar.open+.sidebar-backdrop{display:block}}
+    .sync-bar{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;max-width:1440px;min-height:30px;margin:0 auto;padding-top:8px;color:var(--muted);font-size:10px}.sync-bar [hidden]{display:none!important}.sync-bar .link-btn{font-size:10px}#syncStatus[data-state="synced"]{color:var(--pine-2)}#syncStatus[data-state="error"],#syncStatus[data-state="conflict"],#syncStatus[data-state="offline"]{color:#a46c1f}.sync-decision-backdrop{z-index:45}.sync-decision-copy{font-size:12px;line-height:1.6;color:var(--muted)}.sync-choices{display:grid;grid-template-columns:1fr 1fr;gap:12px}.sync-choices>div{min-width:0;border:1px solid var(--line);border-radius:10px;padding:13px}.sync-choices strong,.sync-choices span{display:block;overflow-wrap:anywhere;font-size:11px;line-height:1.6;margin:5px 0}.sync-choices strong{font-size:12px}.sync-choice-actions{flex-wrap:wrap}.sync-choice-actions .btn{white-space:normal}@media(max-width:430px){.sync-choices{grid-template-columns:1fr}.sync-choice-actions .btn{flex:1}}
   </style>
 </head>
 <body>
@@ -69,7 +70,7 @@
         <button class="btn btn-primary auth-submit" id="loginSubmit" type="submit" disabled>Đăng nhập</button><button class="btn btn-secondary auth-submit" id="loginRetry" type="button" hidden>Thử lại</button>
       </form>
       <div class="auth-help">Chưa có tài khoản hoặc quên mật khẩu? Liên hệ quản trị viên nhà trường.</div>
-      <p class="auth-note">Dữ liệu trường hiện được lưu riêng trên từng trình duyệt.</p>
+      <p class="auth-note">Dữ liệu trường được đồng bộ khi đăng nhập cùng tài khoản.</p>
     </div>
   </section>
   <div class="app" id="appRoot" hidden>
@@ -89,10 +90,12 @@
     <button class="sidebar-backdrop" id="sidebarBackdrop" type="button" aria-label="Đóng menu"></button>
     <main class="main">
       <header class="topbar"><button class="top-icon mobile-menu" id="mobileMenu" aria-label="Mở menu" aria-controls="sidebar" aria-expanded="false"><svg><use href="#i-menu"/></svg></button><div class="crumb"><span>Trường học</span> &nbsp;›&nbsp; <strong id="crumbCurrent">Tổng quan</strong></div><div class="top-right"><button class="year-pill" id="academicYearButton" type="button" data-action="open-school-years" aria-haspopup="dialog" aria-label="Chọn năm học"><svg><use href="#i-calendar"/></svg><span id="academicYearLabel">Năm học 2026 – 2027</span></button><button class="top-icon" aria-label="Thông báo" title="Thông báo"><svg><use href="#i-bell"/></svg></button></div></header>
+      <div class="sync-bar"><span id="syncStatus" role="status">Đang kết nối đồng bộ…</span><button id="syncRetry" type="button" class="link-btn" hidden>Thử đồng bộ lại</button><button id="syncBackup" type="button" class="link-btn" hidden>Tải bản sao dữ liệu cũ</button></div>
       <div class="page-wrap" id="page"></div>
     </main>
   </div>
   <div id="modalRoot"></div>
+  <div id="syncDecisionRoot"></div>
   <div id="toastRoot" aria-live="polite"></div>
   <script>
     const KEY='thpt-an-binh-data-v1',YEARS_KEY='thpt-an-binh-school-years-v1',AVATAR_KEY='thpt-an-binh-school-avatar-v1',SCHOOL_NAME_KEY='thpt-an-binh-school-name-v1',DEFAULT_YEAR='2026-2027';
@@ -203,10 +206,16 @@
     let page='overview',searchText='',subjectSearch='',selectedSubject='',selectedClass='',selectedExam='Tất cả kỳ thi',profileClass='',studentSearch='';
     const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
     const icon=(name)=>'<svg aria-hidden="true"><use href="#i-'+name+'"/></svg>';
+    const schoolBrand={name:'THPT AN BÌNH',avatar:null};
+    let avatarRevision=0,avatarPickerSession;
     function esc(value){return String(value==null?'':value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
     function save(){
       const previous=schoolYears[currentSchoolYear];schoolYears[currentSchoolYear]=clone(data);
-      try{localStorage.setItem(YEARS_KEY,JSON.stringify({current:currentSchoolYear,years:schoolYears,teachers:globalTeachers}))}catch(error){if(previous===undefined)delete schoolYears[currentSchoolYear];else schoolYears[currentSchoolYear]=previous;throw error}
+      const stored=JSON.stringify({current:currentSchoolYear,years:schoolYears,teachers:globalTeachers});
+      if(window.schoolDataSync){
+        try{window.schoolDataSync.queue(window.schoolWorkspaceAdapter.capture())}catch(error){if(previous===undefined)delete schoolYears[currentSchoolYear];else schoolYears[currentSchoolYear]=previous;throw error}
+        try{localStorage.setItem(YEARS_KEY,stored)}catch(error){}
+      }else{try{localStorage.setItem(YEARS_KEY,stored)}catch(error){if(previous===undefined)delete schoolYears[currentSchoolYear];else schoolYears[currentSchoolYear]=previous;throw error}}
       // The year store is authoritative; this is only the legacy compatibility copy.
       try{localStorage.setItem(KEY,JSON.stringify(data))}catch(error){}
     }
@@ -218,12 +227,18 @@
     function className(id,fallback){const c=cls(id);return c?c.name:(fallback||'Đã lưu')}function scoreRatio(h){const max=Number(h.maxScore)||10;return max>0?Number(h.score||0)/max:0}function formatScore(n){return Number(n||0).toLocaleString('vi-VN',{maximumFractionDigits:2})}
     function initials(name){return String(name||'').trim().split(/\s+/).slice(-2).map(x=>x[0]||'').join('').toUpperCase()}
     function toast(message){const root=$('#toastRoot');root.innerHTML='<div class="toast">'+esc(message)+'</div>';setTimeout(()=>root.innerHTML='',2600)}
-    function displaySchoolAvatar(source){['schoolAvatarImage','authSchoolImage','accountAvatarImage'].forEach(id=>{$('#'+id).src=source;$('#'+id).hidden=false});$('#schoolAvatarIcon').style.display='none';$('#authSchoolIcon').style.display='none';$('#accountAvatarFallback').hidden=true}
+    function displaySchoolAvatar(source){schoolBrand.avatar=source||null;['schoolAvatarImage','authSchoolImage','accountAvatarImage'].forEach(id=>{if(source)$('#'+id).src=source;else $('#'+id).removeAttribute('src');$('#'+id).hidden=!source});$('#schoolAvatarIcon').style.display=source?'none':'';$('#authSchoolIcon').style.display=source?'none':'';$('#accountAvatarFallback').hidden=!!source}
     function normalizeSchoolName(value){return String(value||'').trim().replace(/\s+/g,' ')}
-    function displaySchoolName(name){$('#schoolNameButton').textContent=name;$('#authSchoolName').textContent=name;document.title=name+' — Cổng quản lý'}
+    function displaySchoolName(name){schoolBrand.name=name;$('#schoolNameButton').textContent=name;$('#authSchoolName').textContent=name;document.title=name+' — Cổng quản lý'}
+    function persistSchoolBrand(changes){
+      if(window.schoolDataSync){const snapshot=window.schoolWorkspaceAdapter.capture();snapshot.school={...snapshot.school,...changes};window.schoolDataSync.queue(snapshot);try{if(changes.name!==undefined)localStorage.setItem(SCHOOL_NAME_KEY,changes.name);if(changes.avatar!==undefined)localStorage.setItem(AVATAR_KEY,changes.avatar)}catch(error){}}
+      else{if(changes.name!==undefined)localStorage.setItem(SCHOOL_NAME_KEY,changes.name);if(changes.avatar!==undefined)localStorage.setItem(AVATAR_KEY,changes.avatar)}
+    }
     function openSchoolNameModal(){modalForm('school-name','Đổi tên trường','Tên mới sẽ hiển thị cạnh ảnh đại diện.',field('Tên trường','schoolName',$('#schoolNameButton').textContent,'Nhập tên trường',{full:true,maxlength:100}),false);$('#f-schoolName').select()}
     async function changeSchoolAvatar(file){
       const button=$('#schoolAvatarButton'),input=$('#schoolAvatarInput');if(!file||button.disabled)return;
+      if($('#appRoot').hidden){input.value='';return}
+      const attempt=++avatarRevision,session=window.schoolDataSync;
       let url;
       try{
         if(!file.type.startsWith('image/')){toast('Vui lòng chọn một tệp ảnh.');return}
@@ -231,15 +246,17 @@
         button.disabled=true;button.setAttribute('aria-busy','true');
         url=URL.createObjectURL(file);const image=new Image();
         await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=()=>reject(new Error('image-decode'));image.src=url});
+        if(attempt!==avatarRevision||session!==window.schoolDataSync||$('#appRoot').hidden)return;
         const side=Math.min(image.naturalWidth,image.naturalHeight);if(!side)throw new Error('image-decode');
         const canvas=document.createElement('canvas');canvas.width=canvas.height=256;
         canvas.getContext('2d').drawImage(image,(image.naturalWidth-side)/2,(image.naturalHeight-side)/2,side,side,0,0,256,256);
         const avatar=canvas.toDataURL('image/png');
-        try{localStorage.setItem(AVATAR_KEY,avatar)}catch(error){toast('Không lưu được ảnh đại diện. Hãy kiểm tra dung lượng hoặc quyền lưu trữ của trình duyệt.');return}
+        try{persistSchoolBrand({avatar})}catch(error){toast('Không lưu được ảnh đại diện. Hãy kiểm tra dung lượng hoặc quyền lưu trữ của trình duyệt.');return}
         displaySchoolAvatar(avatar);toast('Đã đổi ảnh đại diện trường.');
-      }catch(error){toast('Không đọc được ảnh. Vui lòng chọn ảnh JPG, PNG hoặc ảnh khác được trình duyệt hỗ trợ.')}
-      finally{if(url)URL.revokeObjectURL(url);input.value='';button.disabled=false;button.removeAttribute('aria-busy')}
+      }catch(error){if(attempt===avatarRevision&&session===window.schoolDataSync&&!$('#appRoot').hidden)toast('Không đọc được ảnh. Vui lòng chọn ảnh JPG, PNG hoặc ảnh khác được trình duyệt hỗ trợ.')}
+      finally{if(url)URL.revokeObjectURL(url);if(attempt===avatarRevision){input.value='';button.disabled=false;button.removeAttribute('aria-busy')}}
     }
+    function cancelAvatarChange(){avatarRevision++;$('#schoolAvatarInput').value='';$('#schoolAvatarButton').disabled=false;$('#schoolAvatarButton').removeAttribute('aria-busy')}
     function pageHead(title,desc,action){return '<div class="page-head"><div><div class="eyebrow">Hệ thống quản lý trường học</div><h1>'+title+'</h1><p>'+desc+'</p></div>'+(action||'')+'</div>'}
     function addButton(label,action){return '<button class="btn btn-primary" data-action="'+action+'">'+icon('plus')+'<span class="btn-label">'+label+'</span></button>'}
     function subjectNames(){return uniqueSubjects(data.subjects)}
@@ -272,7 +289,7 @@
         statCard('Học sinh',total.toLocaleString('vi-VN'),'Học sinh đang theo học','users')+
         statCard('Giáo viên bộ môn',teachers,'Đang giảng dạy','grid','blue','teachers')+
         statCard('Học sinh vinh danh',data.honors.length,'Thành tích nổi bật','award','gold','honors')+
-        '</section><section class="dashboard-grid"><div class="surface panel"><div class="panel-head"><div><div class="panel-title">Quy mô theo khối</div><div class="panel-sub">Số học sinh đang theo học ở từng khối lớp</div></div><span class="badge">Năm học '+formatAcademicYear(currentSchoolYear)+'</span></div><div class="class-bars">'+bars.map(x=>'<div class="bar-row"><div class="bar-name">Khối '+x.g+'</div><div class="bar-track"><div class="bar-fill" style="width:'+Math.round(x.n/max*100)+'%"></div></div><div class="bar-val">'+x.n+'</div></div>').join('')+'</div><div class="section-gap" style="font-size:10px;color:var(--muted)">Tổng cộng <b style="color:var(--ink)">'+enrolled.length+' lớp đang học</b> · Mỗi lớp tối đa 60 học sinh<div style="margin-top:6px">Khối 12 vẫn được tính trong năm cuối; từ năm học kế tiếp, chuyển sang đã tốt nghiệp.</div></div></div></section><div class="footer-note">Dữ liệu được lưu trên trình duyệt này · Có thể thay bằng dữ liệu thật của nhà trường</div>';
+        '</section><section class="dashboard-grid"><div class="surface panel"><div class="panel-head"><div><div class="panel-title">Quy mô theo khối</div><div class="panel-sub">Số học sinh đang theo học ở từng khối lớp</div></div><span class="badge">Năm học '+formatAcademicYear(currentSchoolYear)+'</span></div><div class="class-bars">'+bars.map(x=>'<div class="bar-row"><div class="bar-name">Khối '+x.g+'</div><div class="bar-track"><div class="bar-fill" style="width:'+Math.round(x.n/max*100)+'%"></div></div><div class="bar-val">'+x.n+'</div></div>').join('')+'</div><div class="section-gap" style="font-size:10px;color:var(--muted)">Tổng cộng <b style="color:var(--ink)">'+enrolled.length+' lớp đang học</b> · Mỗi lớp tối đa 60 học sinh<div style="margin-top:6px">Khối 12 vẫn được tính trong năm cuối; từ năm học kế tiếp, chuyển sang đã tốt nghiệp.</div></div></div></section><div class="footer-note">Dữ liệu được đồng bộ giữa các thiết bị cùng tài khoản</div>';
     }
     function statCard(label,value,foot,iconName,tone,action){const tag=action?'button':'article',attrs=action?' type="button" data-page="'+action+'"':'';return '<'+tag+attrs+' class="surface stat-card'+(action?' stat-card-link':'')+'"><div class="stat-top"><div class="stat-label">'+label+'</div><div class="stat-icon '+(tone||'')+'">'+icon(iconName)+'</div></div><div class="stat-value">'+value+'</div><div class="stat-foot">'+foot+'</div></'+tag+'>'}
     function renderClasses(){
@@ -329,7 +346,7 @@
       const list=all.slice().sort((a,b)=>a.fullName.localeCompare(b.fullName,'vi')).filter(s=>!query||(s.fullName+' '+s.cccd+' '+displayBirthDate(s.birthDate)).toLocaleLowerCase('vi').includes(query));
       const rows=list.length?list.map((s,i)=>'<tr><td class="student-order">'+(i+1)+'</td><td class="student-name">'+esc(s.fullName)+(s.isSample===true?' <span class="badge gold">Mẫu</span>':'')+(c.status==='Đã tốt nghiệp'?' <span class="badge blue">Đã tốt nghiệp</span>':'')+'</td><td><span class="student-mobile-label">Ngày sinh</span>'+esc(displayBirthDate(s.birthDate))+'</td><td class="student-id"><span class="student-mobile-label">Số CCCD</span>'+esc(s.cccd||'Chưa có')+'</td><td><div class="row-actions student-actions"><button class="btn btn-secondary btn-small" data-action="edit-student" data-id="'+esc(s.id)+'" aria-label="Sửa học sinh '+esc(s.fullName)+'">'+icon('edit')+' Sửa</button><button class="btn btn-danger btn-small" data-action="delete-student" data-id="'+esc(s.id)+'" aria-label="Xóa học sinh '+esc(s.fullName)+'">'+icon('trash')+' Xóa</button></div></td></tr>').join(''):'<tr><td colspan="5"><div class="empty"><strong>'+(query?'Không tìm thấy học sinh':'Chưa có hồ sơ học sinh')+'</strong>'+(query?'Thử tìm theo họ tên, ngày sinh hoặc số CCCD.':'Bấm “Thêm học sinh” để nhập hồ sơ cho lớp '+esc(c.name)+'.')+'</div></td></tr>';
       return '<button class="btn btn-secondary roster-back" data-action="back-classes">← Danh sách lớp</button>'+pageHead('Học sinh lớp '+esc(c.name),'Quản lý họ tên, ngày tháng năm sinh và số CCCD của từng học sinh.','<div class="head-actions student-head-actions">'+(!all.length&&profileLimit(c.id)>0?'<button class="btn btn-secondary seed-sample-btn" data-action="seed-sample-students">Tạo '+profileLimit(c.id)+' học sinh mẫu</button>':'')+'<button class="btn btn-primary roster-add" data-action="add-student">'+icon('plus')+'<span class="btn-label">Thêm học sinh</span></button></div>')+
-        (sampleCount?'<p class="sample-roster-note">Danh sách có <strong>'+sampleCount+' hồ sơ mẫu</strong> để dùng thử, không phải thông tin học sinh thật.</p>':'')+'<section class="surface"><div class="roster-summary"><span>'+esc(cohortLabel(c))+' · <strong>'+esc(c.status)+'</strong></span><span>Giáo viên chủ nhiệm: <strong>'+esc(c.teacher||'Chưa phân công')+'</strong></span><span>Sĩ số khai báo: <strong>'+Number(c.students||0)+'</strong></span><span>Hồ sơ đã nhập: <strong>'+all.length+' / '+profileLimit(c.id)+'</strong></span></div><div class="toolbar roster-toolbar"><div class="toolbar-left"><label class="search">'+icon('search')+'<input id="studentSearch" type="search" aria-label="Tìm học sinh" placeholder="Tìm họ tên, ngày sinh, CCCD…" value="'+esc(studentSearch)+'"></label></div><div class="toolbar-right"><span class="count-label">'+list.length+' / '+all.length+' hồ sơ học sinh</span></div></div><div class="table-wrap"><table class="student-table"><thead><tr><th>STT</th><th>Họ và tên học sinh</th><th>Ngày tháng năm sinh</th><th>Số CCCD</th><th>Thao tác</th></tr></thead><tbody>'+rows+'</tbody></table></div></section><p class="footer-note roster-note">Hồ sơ được lưu trên trình duyệt đang dùng, chưa đồng bộ giữa các thiết bị. Số hồ sơ không vượt quá sĩ số lớp. Cập nhật sĩ số trong “Sửa lớp” khi cần.</p>';
+        (sampleCount?'<p class="sample-roster-note">Danh sách có <strong>'+sampleCount+' hồ sơ mẫu</strong> để dùng thử, không phải thông tin học sinh thật.</p>':'')+'<section class="surface"><div class="roster-summary"><span>'+esc(cohortLabel(c))+' · <strong>'+esc(c.status)+'</strong></span><span>Giáo viên chủ nhiệm: <strong>'+esc(c.teacher||'Chưa phân công')+'</strong></span><span>Sĩ số khai báo: <strong>'+Number(c.students||0)+'</strong></span><span>Hồ sơ đã nhập: <strong>'+all.length+' / '+profileLimit(c.id)+'</strong></span></div><div class="toolbar roster-toolbar"><div class="toolbar-left"><label class="search">'+icon('search')+'<input id="studentSearch" type="search" aria-label="Tìm học sinh" placeholder="Tìm họ tên, ngày sinh, CCCD…" value="'+esc(studentSearch)+'"></label></div><div class="toolbar-right"><span class="count-label">'+list.length+' / '+all.length+' hồ sơ học sinh</span></div></div><div class="table-wrap"><table class="student-table"><thead><tr><th>STT</th><th>Họ và tên học sinh</th><th>Ngày tháng năm sinh</th><th>Số CCCD</th><th>Thao tác</th></tr></thead><tbody>'+rows+'</tbody></table></div></section><p class="footer-note roster-note">Hồ sơ được đồng bộ giữa các thiết bị đăng nhập cùng tài khoản. Số hồ sơ không vượt quá sĩ số lớp. Cập nhật sĩ số trong “Sửa lớp” khi cần.</p>';
     }
     function openStudentModal(idValue){
       const c=cls(profileClass),s=data.studentProfiles.find(x=>x.id===idValue&&x.classId===profileClass);
@@ -538,7 +555,7 @@
       if(kind==='school-name'){
         const name=normalizeSchoolName(f.get('schoolName'));
         if(!name||name.length>100){showError('Vui lòng nhập tên trường, tối đa 100 ký tự.');return}
-        try{localStorage.setItem(SCHOOL_NAME_KEY,name)}catch(error){showError('Không lưu được tên trường. Hãy kiểm tra dung lượng hoặc quyền lưu trữ của trình duyệt.');return}
+        try{persistSchoolBrand({name})}catch(error){showError('Không lưu được tên trường. Hãy kiểm tra dung lượng hoặc quyền lưu trữ của trình duyệt.');return}
         displaySchoolName(name);closeModal();toast('Đã đổi tên trường.');return;
       }
       if(kind==='school-year'){createAcademicYear(f.get('startYear'),f.get('endYear'),f.has('copyCurrent'));return}
@@ -598,22 +615,26 @@
     $('#mobileMenu').addEventListener('click',()=>setSidebarOpen(!$('#sidebar').classList.contains('open')));
     $('#sidebarBackdrop').addEventListener('click',()=>{setSidebarOpen(false);$('#mobileMenu').focus({preventScroll:true})});
     compactSidebar.addEventListener('change',event=>{if(!event.matches)setSidebarOpen(false)});
-    $('#schoolAvatarButton').addEventListener('click',()=>$('#schoolAvatarInput').click());
+    $('#schoolAvatarButton').addEventListener('click',()=>{avatarPickerSession=window.schoolDataSync;$('#schoolAvatarInput').click()});
     $('#schoolNameButton').addEventListener('click',openSchoolNameModal);
-    $('#schoolAvatarInput').addEventListener('change',e=>changeSchoolAvatar(e.target.files[0]));
+    $('#schoolAvatarInput').addEventListener('change',e=>{const session=avatarPickerSession;avatarPickerSession=undefined;if(session!==undefined&&session!==window.schoolDataSync){e.target.value='';return}changeSchoolAvatar(e.target.files[0])});
+    $('#schoolAvatarInput').addEventListener('cancel',()=>{avatarPickerSession=undefined});
     $('#schoolAvatarImage').addEventListener('error',()=>{$('#schoolAvatarImage').hidden=true;$('#schoolAvatarIcon').style.removeProperty('display')});
     $('#authSchoolImage').addEventListener('error',()=>{$('#authSchoolImage').hidden=true;$('#authSchoolIcon').style.removeProperty('display')});
     $('#accountAvatarImage').addEventListener('error',()=>{$('#accountAvatarImage').hidden=true;$('#accountAvatarFallback').hidden=false});
     try{const avatar=localStorage.getItem(AVATAR_KEY);if(avatar&&avatar.startsWith('data:image/png;base64,'))displaySchoolAvatar(avatar)}catch(error){}
     try{const name=normalizeSchoolName(localStorage.getItem(SCHOOL_NAME_KEY));if(name&&name.length<=100)displaySchoolName(name)}catch(error){}
     window.schoolAppAuthHooks={
+      prepare(user,client){return window.schoolWorkspaceSync.prepare(user,client)},
       unlock(){resetAcademicYearPage();closeModal();render()},
-      lock(){closeModal();setSidebarOpen(false);$('#page').replaceChildren();$('#toastRoot').replaceChildren()}
+      lock(){cancelAvatarChange();window.schoolWorkspaceSync?.disconnect();closeModal();setSidebarOpen(false);$('#page').replaceChildren();$('#toastRoot').replaceChildren()}
     };
   </script>
   <script src="auth-config.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js" integrity="sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O" crossorigin="anonymous" defer></script>
-  <script src="auth.js" defer></script>
+  <script src="cloud-sync.js" defer></script>
+  <script src="workspace-sync.js" defer></script>
+  <script src="auth.js?v=sync1" defer></script>
 </body>
 </html>
 

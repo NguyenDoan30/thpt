@@ -37,9 +37,10 @@ async function run() {
     page.on('pageerror', error => pageErrors.push(error.message));
     await page.route('https://fonts.googleapis.com/**', route => route.abort());
     await page.route('https://fonts.gstatic.com/**', route => route.abort());
-    await prepareAuthenticatedPage(page, server.origin);
+    const auth = await prepareAuthenticatedPage(page, server.origin);
 
     const seed = async (years, current = '2026-2027') => {
+      await auth.resetWorkspace();
       await page.evaluate(({ yearsKey, dataKey, years, current }) => {
         localStorage.removeItem(yearsKey);
         localStorage.removeItem(dataKey);

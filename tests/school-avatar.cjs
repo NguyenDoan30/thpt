@@ -46,7 +46,7 @@ async function run() {
       };
       const png = { name: 'school-logo.png', mimeType: 'image/png', buffer: await fixture('image/png') };
       const jpeg = { name: 'school-photo.jpg', mimeType: 'image/jpeg', buffer: await fixture('image/jpeg', true) };
-      const state = () => page.evaluate(({ yearsKey, dataKey }) => ({ data, schoolYears, teachers: globalTeachers, yearsStored: localStorage.getItem(yearsKey), dataStored: localStorage.getItem(dataKey) }), { yearsKey: YEARS_KEY, dataKey: DATA_KEY });
+      const state = () => page.evaluate(({ yearsKey, dataKey }) => ({ data, schoolYears, teachers: globalTeachers, yearsStored: JSON.parse(localStorage.getItem(yearsKey)), dataStored: JSON.parse(localStorage.getItem(dataKey)) }), { yearsKey: YEARS_KEY, dataKey: DATA_KEY });
       const avatar = () => page.evaluate(key => localStorage.getItem(key), AVATAR_KEY);
       const settled = () => page.waitForFunction(() => document.querySelector('#schoolAvatarInput').value === '' && !document.querySelector('#schoolAvatarButton').disabled);
       const choose = async (file, keyboard = false) => {
@@ -96,18 +96,19 @@ async function run() {
       }
 
       // Storage failure cannot apply an image that would disappear after reloading.
-      await page.evaluate(key => {
+      await page.evaluate(() => {
         const original = Storage.prototype.setItem;
         window.restoreAvatarStorage = () => { Storage.prototype.setItem = original; };
         Storage.prototype.setItem = function(name, value) {
-          if (name === key) throw new DOMException('Fixture quota failure', 'QuotaExceededError');
+          if (name.startsWith('thpt-school-sync-cache-v1:')) throw new DOMException('Fixture quota failure', 'QuotaExceededError');
           return original.call(this, name, value);
         };
-      }, AVATAR_KEY);
+      });
       await input.setInputFiles(jpeg); await settled(); await assertAvatar(first);
       await page.evaluate(() => window.restoreAvatarStorage());
       assert.deepEqual(await state(), original);
 
+      await page.waitForFunction(() => document.querySelector('#syncStatus').textContent.includes('Đã đồng bộ'));
       await page.reload(); await page.locator('#appRoot').waitFor({ state: 'visible' }); if (mobile) await page.locator('#mobileMenu').click();
       await assertAvatar(first);
       if (mobile) await page.locator('#sidebarBackdrop').click({ position: { x: viewport.width - 10, y: 100 } });
@@ -119,6 +120,7 @@ async function run() {
       await page.locator('#academicYearButton').click();
       await page.locator('[data-action="select-school-year"][data-year="2026-2027"]').click();
       await assertAvatar(first);
+      await page.waitForFunction(() => document.querySelector('#syncStatus').textContent.includes('Đã đồng bộ'));
       await page.reload(); await page.locator('#appRoot').waitFor({ state: 'visible' }); if (mobile) await page.locator('#mobileMenu').click(); await assertAvatar(first);
       assert.deepEqual(errors, []);
       console.log(`PASS ${viewport.width}px: native/keyboard image picker, square PNG conversion, JPEG/reselection, validation and quota recovery, reload/year persistence, academic data unchanged.`);

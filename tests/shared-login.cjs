@@ -3,6 +3,7 @@ const { chromium } = require('playwright');
 const { startTestServer, installAuthMocks, AUTH_STORAGE_KEY, EMAIL, PASSWORD } = require('./auth-fixture.cjs');
 
 const appVisible = page => page.locator('#appRoot').isVisible();
+const schoolState = page => page.evaluate(() => ({ data, schoolYears, schoolName: document.querySelector('#schoolNameButton').textContent, avatar: localStorage.getItem(AVATAR_KEY) || '', years: JSON.parse(localStorage.getItem(YEARS_KEY)), legacy: JSON.parse(localStorage.getItem(KEY)) }));
 async function ready(page) { await page.waitForFunction(() => !document.querySelector('#loginSubmit').disabled); }
 async function errorShown(page) { await page.waitForFunction(() => document.querySelector('#loginError').textContent.trim()); }
 async function waitUntil(condition) {
@@ -36,7 +37,7 @@ async function run() {
       assert.equal(await page.locator('#authScreen').isVisible(), true);
       assert.equal(await page.evaluate(() => window.__appShownBeforeLogin), false, 'Dashboard must not flash before login');
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
-      const original = await page.evaluate(() => JSON.stringify({ data, schoolYears, schoolName: localStorage.getItem(SCHOOL_NAME_KEY), avatar: localStorage.getItem(AVATAR_KEY), years: localStorage.getItem(YEARS_KEY), legacy: localStorage.getItem(KEY) }));
+      const original = await schoolState(page);
 
       // Invalid email remains native form validation and never sends credentials.
       await page.locator('#loginEmail').fill('invalid-email'); await page.locator('#loginPassword').fill(PASSWORD);
@@ -57,13 +58,20 @@ async function run() {
       assert.equal(await page.locator('#authScreen').isVisible(), false);
       assert.equal(await page.locator('#loginPassword').inputValue(), '');
       assert.equal(await page.locator('#currentAccountName').textContent(), EMAIL);
-      assert.equal(await page.evaluate(() => JSON.stringify({ data, schoolYears, schoolName: localStorage.getItem(SCHOOL_NAME_KEY), avatar: localStorage.getItem(AVATAR_KEY), years: localStorage.getItem(YEARS_KEY), legacy: localStorage.getItem(KEY) })), original, 'Logging in must preserve school data and branding');
+      assert.deepEqual(await schoolState(page), original, 'Logging in must preserve school data and branding');
 
       // Restoring a browser session stays closed until /user confirms it.
       auth.holdUser = true; const beforeRestore = auth.counts.user;
       await page.reload(); await waitUntil(() => auth.counts.user > beforeRestore);
       assert.equal(await appVisible(page), false, 'A stored token alone must not unlock the app');
       auth.releaseUser(); await page.locator('#appRoot').waitFor({ state: 'visible' });
+
+      // Verified authentication must still wait for this account's workspace.
+      auth.cloud.holdReads = true; const beforeWorkspaceRestore = auth.cloud.reads;
+      await page.reload(); await waitUntil(() => auth.cloud.reads > beforeWorkspaceRestore);
+      assert.equal(await appVisible(page), false, 'A verified user must not see stale local data while the account workspace loads');
+      auth.cloud.releaseReads(); await page.locator('#appRoot').waitFor({ state: 'visible' });
+      assert.deepEqual(await schoolState(page), original);
 
       // An expired access token refreshes through the real SDK, then gets verified.
       await page.evaluate(key => {
@@ -81,7 +89,7 @@ async function run() {
       assert.equal(await appVisible(page), false); assert.equal(await page.getByRole('dialog').count(), 0);
       assert.equal(await page.locator('#loginPassword').inputValue(), '');
       assert.equal(auth.counts.logout, 1);
-      assert.equal(await page.evaluate(() => JSON.stringify({ data, schoolYears, schoolName: localStorage.getItem(SCHOOL_NAME_KEY), avatar: localStorage.getItem(AVATAR_KEY), years: localStorage.getItem(YEARS_KEY), legacy: localStorage.getItem(KEY) })), original);
+      assert.deepEqual(await schoolState(page), original);
       await page.reload(); await ready(page); assert.equal(await appVisible(page), false);
       await auth.signIn();
 
@@ -100,7 +108,7 @@ async function run() {
       auth.logoutNetworkError = false;
       await auth.signIn();
       assert.deepEqual(errors, []);
-      console.log(`PASS ${viewport.width}px: pre-login gate, server credentials, verified restore/refresh, logout, revoked/network failures, unchanged school data.`);
+      console.log(`PASS ${viewport.width}px: pre-login gate, server credentials, verified auth/workspace restore, refresh, logout, revoked/network failures, unchanged school data.`);
       await context.close();
     }
 
