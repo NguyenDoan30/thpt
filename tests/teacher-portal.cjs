@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const { chromium } = require('playwright');
-const { startTestServer, installAuthMocks, PROJECT_URL, EMAIL, PASSWORD, USER_ID } = require('./auth-fixture.cjs');
+const { startTestServer, startTeacherTestServer, installAuthMocks, createCloudStore, PROJECT_URL, EMAIL, PASSWORD, USER_ID } = require('./auth-fixture.cjs');
 
 const OTHER_ID = '22222222-2222-4222-8222-222222222222';
 const OWNER_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -31,7 +31,7 @@ function teacherSnapshot(name = 'Võ Thành Long', year = YEAR) {
   };
 }
 async function mockTeacherRPC(page, auth, options = {}) {
-  const state = { calls: [], schools: true, error: null, held: null, grants: [], snapshots: new Map([[USER_ID, teacherSnapshot()], [OTHER_ID, teacherSnapshot('Giáo viên thứ hai')]]), ...options };
+  const state = options.sharedState || { calls: [], schools: true, error: null, held: null, grants: [], snapshots: new Map([[USER_ID, teacherSnapshot()], [OTHER_ID, teacherSnapshot('Giáo viên thứ hai')]]), ...options };
   const headers = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'GET,POST,OPTIONS', 'content-type': 'application/json' };
   await page.route(`${PROJECT_URL}/rest/v1/rpc/**`, async route => {
     const request = route.request(), name = new URL(request.url()).pathname.split('/').pop();
@@ -46,11 +46,14 @@ async function mockTeacherRPC(page, auth, options = {}) {
     const hold = state.held;
     if (hold && hold.name === name && (!hold.userId || hold.userId === user.sub)) await hold.gate.promise;
     if (state.error) return json(400, state.error);
-    if (name === 'list_teacher_schools') return json(200, state.schools ? [{ owner_id: OWNER_ID, school: { name: 'THPT Cổng Giáo Viên', avatar: null }, teacher_name: state.snapshots.get(user.sub)?.teacher.name }] : []);
+    const linked = state.schools && (!state.enforceGrants || state.grants.some(grant => grant.enabled && grant.email === user.email));
+    const school = state.ownerWorkspaceStore?.rows.get(USER_ID)?.payload.school || { name: 'THPT Cổng Giáo Viên', avatar: null };
+    if (name === 'list_teacher_schools') return json(200, linked ? [{ owner_id: OWNER_ID, school: clone(school), teacher_name: state.snapshots.get(user.sub)?.teacher.name }] : []);
     if (name === 'get_teacher_portal') {
-      if (!state.schools || args.p_owner_id !== OWNER_ID) return json(400, { code: '42501', message: 'teacher_access_denied' });
+      if (!linked || args.p_owner_id !== OWNER_ID) return json(400, { code: '42501', message: 'teacher_access_denied' });
       const snapshot = clone(state.snapshots.get(user.sub));
       if (args.p_year === OLD_YEAR) Object.assign(snapshot, teacherSnapshot(snapshot.teacher.name, OLD_YEAR));
+      snapshot.school = clone(school);
       return json(200, snapshot);
     }
     if (name === 'list_school_teacher_access') return json(200, clone(state.grants));
@@ -78,16 +81,27 @@ async function device(browser, origin, options = {}) {
   });
   const auth = await installAuthMocks(page, { accounts: [{ id: OTHER_ID, email: 'second@example.test', password: PASSWORD }], ...options.auth });
   const rpc = await mockTeacherRPC(page, auth, options.rpc);
-  await page.goto(origin + (options.admin ? '/' : '/teacher.html'));
+  await page.goto(origin + '/');
   return { context, page, auth, rpc, errors };
 }
 
 async function run() {
   const server = await startTestServer();
+  const teacherServer = await startTeacherTestServer();
   const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium', headless: true, args: ['--no-sandbox'] });
   try {
+    assert.notEqual(server.origin, teacherServer.origin, 'Management and teacher websites must run on separate origins');
+    const teacherHTML = await (await fetch(teacherServer.origin)).text();
+    const managementHTML = await (await fetch(server.origin)).text();
+    assert.doesNotMatch(teacherHTML, /class="admin-link"|Đến trang quản lý nhà trường/, 'Teacher login must not be a management-login switch');
+    assert.doesNotMatch(managementHTML, /class="teacher-login-link"|Đăng nhập dành cho giáo viên/, 'Management login must stand alone');
+    for (const resource of ['/cloud-sync.js', '/workspace-sync.js', '/teacher-access.js', '/teacher.html']) {
+      assert.equal((await fetch(teacherServer.origin + resource)).status, 404, 'Teacher deployment must exclude management assets: ' + resource);
+    }
+    assert.equal((await fetch(server.origin + '/teacher-portal.js')).status, 404, 'Management deployment must not serve the old teacher application');
+    console.log('PASS: two independent website roots with separate login screens and no management application in the teacher deployment.');
     for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }]) {
-      const d = await device(browser, server.origin, { viewport });
+      const d = await device(browser, teacherServer.origin, { viewport });
       try {
         assert.equal(await d.page.locator('#appRoot').isVisible(), false);
         await d.auth.signIn();
@@ -132,7 +146,7 @@ async function run() {
       } finally { await d.context.close(); }
     }
 
-    const noAccess = await device(browser, server.origin, { rpc: { schools: false } });
+    const noAccess = await device(browser, teacherServer.origin, { rpc: { schools: false } });
     try {
       await noAccess.auth.signIn();
       assert.match(await noAccess.page.locator('#teacherPage').textContent(), /chưa|chưa được/i);
@@ -149,7 +163,7 @@ async function run() {
       console.log('PASS: an account with no grant has a usable empty state; refreshing reflects grant and revocation.');
     } finally { await noAccess.context.close(); }
 
-    const failure = await device(browser, server.origin, { rpc: { error: { code: 'PGRST202', message: 'Could not find the function public.list_teacher_schools' } } });
+    const failure = await device(browser, teacherServer.origin, { rpc: { error: { code: 'PGRST202', message: 'Could not find the function public.list_teacher_schools' } } });
     try {
       await failure.page.locator('#loginEmail').fill(EMAIL);
       await failure.page.locator('#loginPassword').fill(PASSWORD);
@@ -160,7 +174,7 @@ async function run() {
       console.log('PASS: missing teacher backend stays behind the login gate with a recoverable error.');
     } finally { await failure.context.close(); }
 
-    const focus = await device(browser, server.origin);
+    const focus = await device(browser, teacherServer.origin);
     const focusGate = deferred();
     focus.rpc.held = { name: 'get_teacher_portal', userId: USER_ID, gate: focusGate };
     try {
@@ -175,7 +189,7 @@ async function run() {
       console.log('PASS: focus and visibility refresh events cannot cancel an in-progress initial teacher login.');
     } finally { focusGate.resolve(); await focus.context.close(); }
 
-    const race = await device(browser, server.origin);
+    const race = await device(browser, teacherServer.origin);
     const gate = deferred();
     race.rpc.held = { name: 'get_teacher_portal', userId: USER_ID, gate };
     try {
@@ -198,10 +212,25 @@ async function run() {
 
     const admin = await device(browser, server.origin, { admin: true });
     try {
+      const destinations = await admin.page.evaluate(() => {
+        const original = window.SCHOOL_PORTAL_CONFIG.teacherUrl;
+        const invalid = ['javascript:alert(1)', '//teacher.example.test/', 'https://user:password@teacher.example.test/', location.origin + '/teacher.html'].map(value => {
+          window.SCHOOL_PORTAL_CONFIG.teacherUrl = value; return window.schoolTeacherPortalUrl();
+        });
+        window.SCHOOL_PORTAL_CONFIG.teacherUrl = 'https://teacher.example.test/';
+        const valid = window.schoolTeacherPortalUrl();
+        window.SCHOOL_PORTAL_CONFIG.teacherUrl = original;
+        return {invalid, valid};
+      });
+      assert.ok(destinations.invalid.every(value => !value), 'Teacher links only accept independent HTTPS destinations without credentials');
+      assert.equal(destinations.valid, 'https://teacher.example.test/');
       await admin.auth.signIn();
       await admin.page.waitForFunction(() => document.querySelector('#syncStatus').dataset.state === 'synced');
       await admin.page.locator('.nav-btn[data-page="teachers"]').click();
       await admin.page.locator('[data-teacher-access-open]').click();
+      const portalLink = await admin.page.getByRole('link', { name: 'Mở website giáo viên ↗' }).getAttribute('href');
+      assert.equal(new URL(portalLink).protocol, 'https:');
+      assert.notEqual(new URL(portalLink).origin, new URL(server.origin).origin, 'The authenticated management link must open the independent teacher website');
       await admin.page.locator('#accessTeacher').selectOption('Võ Thành Long');
       await admin.page.locator('#accessEmail').fill('math-teacher@example.test');
       await admin.page.locator('#teacherAccessForm [data-access-mutate]').click();
@@ -230,23 +259,47 @@ async function run() {
 
     const shared = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     try {
+      const sharedStore = createCloudStore();
+      const sharedRPC = { calls: [], schools: true, enforceGrants: true, error: null, held: null, grants: [], ownerWorkspaceStore: sharedStore, snapshots: new Map([[OTHER_ID, teacherSnapshot()]]) };
       const ownerPage = await shared.newPage();
-      const ownerAuth = await installAuthMocks(ownerPage);
-      await mockTeacherRPC(ownerPage, ownerAuth);
+      const ownerAuth = await installAuthMocks(ownerPage, { cloudStore: sharedStore });
+      await mockTeacherRPC(ownerPage, ownerAuth, { sharedState: sharedRPC });
       await ownerPage.goto(server.origin); await ownerAuth.signIn();
       const teacherPage = await shared.newPage();
       const teacherAuth = await installAuthMocks(teacherPage, { userId: OTHER_ID, email: 'teacher@example.test' });
-      await mockTeacherRPC(teacherPage, teacherAuth);
-      await teacherPage.goto(server.origin + '/teacher.html');
+      await mockTeacherRPC(teacherPage, teacherAuth, { sharedState: sharedRPC });
+      await teacherPage.goto(teacherServer.origin);
       assert.equal(await teacherPage.locator('#appRoot').isVisible(), false, 'The teacher page must not restore the separate admin session');
       await teacherAuth.signIn('teacher@example.test');
+      assert.match(await teacherPage.locator('#teacherPage').textContent(), /chưa được liên kết/i);
       assert.equal(await ownerPage.locator('#appRoot').isVisible(), true);
       assert.equal(await ownerPage.locator('#currentAccountName').textContent(), EMAIL, 'Teacher sign-in must not switch the open admin account');
+      await ownerPage.locator('.nav-btn[data-page="teachers"]').click();
+      await ownerPage.locator('[data-teacher-access-open]').click();
+      await ownerPage.locator('#accessTeacher').selectOption('Võ Thành Long');
+      await ownerPage.locator('#accessEmail').fill('teacher@example.test');
+      await ownerPage.locator('#teacherAccessForm [data-access-mutate]').click();
+      await ownerPage.locator('[data-access-revoke="Võ Thành Long"]').waitFor({ state: 'visible' });
+      await teacherPage.locator('#teacherRefresh').click();
+      await teacherPage.waitForFunction(() => document.querySelector('#teacherPage').textContent.includes('Toán'));
+      await ownerPage.locator('[data-action="close-modal"]').first().click();
+      await ownerPage.locator('#schoolNameButton').click();
+      await ownerPage.locator('#f-schoolName').fill('THPT Dữ Liệu Liên Kết');
+      await ownerPage.locator('#modalRoot form[data-form="school-name"] button[type="submit"]').click();
+      await until(() => sharedStore.rows.get(USER_ID)?.payload.school.name === 'THPT Dữ Liệu Liên Kết', 'management brand saved in shared backend');
+      await teacherPage.locator('#teacherRefresh').click();
+      await teacherPage.waitForFunction(() => document.querySelector('#schoolName').textContent === 'THPT Dữ Liệu Liên Kết');
+      assert.equal(await teacherPage.evaluate(() => localStorage.getItem('thpt-an-binh-school-name-v1')), null, 'Cross-website updates must come from the shared backend, not browser storage');
+      await ownerPage.locator('[data-teacher-access-open]').click();
+      await ownerPage.locator('[data-access-revoke="Võ Thành Long"]').click();
+      await ownerPage.waitForFunction(() => document.querySelector('#teacherAccessMessage').textContent.includes('Đã thu hồi'));
+      await teacherPage.locator('#teacherRefresh').click();
+      await teacherPage.waitForFunction(() => document.querySelector('#teacherPage').textContent.includes('chưa được liên kết'));
       await teacherPage.locator('#logoutButton').click();
       await teacherPage.locator('#authScreen').waitFor({ state: 'visible' });
       assert.equal(await ownerPage.locator('#appRoot').isVisible(), true);
       assert.equal(await ownerPage.locator('#currentAccountName').textContent(), EMAIL, 'Teacher logout must not end the open admin session');
-      console.log('PASS: owner and teacher tabs keep separate auth sessions in the same browser.');
+      console.log('PASS: separate website origins keep independent sessions while owner grants, synchronized school data and revocation reach the teacher through the shared backend.');
     } finally { await shared.close(); }
 
     const adminRace = await device(browser, server.origin, { admin: true });
@@ -268,6 +321,6 @@ async function run() {
       assert.deepEqual(adminRace.errors, []);
       console.log('PASS: late owner access-list replies stay cancelled after logout/account change.');
     } finally { adminGate.resolve(); await adminRace.context.close(); }
-  } finally { await browser.close(); await server.close(); }
+  } finally { await browser.close(); await server.close(); await teacherServer.close(); }
 }
 run().catch(error => { console.error(error); process.exitCode = 1; });
