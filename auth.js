@@ -26,6 +26,7 @@
     let operation = '';
     let revision = 0;
     let currentUserId = null;
+    let expectedUserId = null;
     let expiryTimer = null;
     let expiryDeadline = 0;
     let retryMode = 'session';
@@ -76,11 +77,25 @@
       screen.removeAttribute('inert');
       screen.setAttribute('aria-hidden', 'false');
       currentUserId = null;
+      expectedUserId = null;
       accountName.textContent = '';
       clearPassword();
       hooks.lock();
     };
-    const unlockApp = (user, session) => {
+    const unlockApp = async (user, session, attempt) => {
+      expectedUserId = user.id;
+      if (currentUserId !== user.id || app.hidden) {
+        showStatus('Đang tải dữ liệu đã đồng bộ…');
+        let deadline;
+        try {
+          await Promise.race([
+            hooks.prepare(user, client),
+            new Promise((_, reject) => { deadline = setTimeout(() => reject({status: 401}), Math.max(0, sessionExpiresAt(session) - Date.now())); }),
+          ]);
+        } catch (error) { if (error && !error.status) error.syncFailure = true; throw error; }
+        finally { clearTimeout(deadline); }
+      }
+      if (attempt !== revision || manuallyLocked || sessionExpiresAt(session) <= Date.now()) { if (attempt === revision) throw {status: 401}; return; }
       if (currentUserId !== user.id || app.hidden) hooks.unlock(user);
       currentUserId = user.id;
       accountName.textContent = user.email || 'Quản trị viên';
@@ -135,6 +150,7 @@
     }
 
     function messageFor(error) {
+      if (error && error.syncFailure) return error.message || 'Không tải được dữ liệu đồng bộ. Vui lòng thử lại.';
       const code = String(error && error.code || '');
       const statusCode = Number(error && error.status);
       if (code === 'invalid_credentials' || code === 'invalid_grant') return 'Email hoặc mật khẩu chưa đúng.';
@@ -196,9 +212,10 @@
           showStatus('Đăng nhập bằng tài khoản do quản trị viên cấp.');
           return;
         }
+        expectedUserId = session.user && session.user.id || null;
         const user = await verifiedUser(session);
         if (attempt !== revision || manuallyLocked) return;
-        unlockApp(user, session);
+        await unlockApp(user, session, attempt);
       } catch (error) {
         if (attempt !== revision) return;
         lockApp();
@@ -225,6 +242,20 @@
         return;
       }
       if (session && ['SIGNED_IN', 'TOKEN_REFRESHED', 'USER_UPDATED'].includes(event)) {
+        const incoming = session.user && session.user.id;
+        const active = expectedUserId || currentUserId;
+        if (incoming && active && incoming !== active) {
+          ++revision;
+          lockApp();
+          expectedUserId = incoming;
+          operation = '';
+          setBusy(false);
+          showError('');
+          showStatus('Tài khoản đã thay đổi. Đang kiểm tra lại…');
+          setTimeout(() => { if (!busy && !manuallyLocked) checkSession(session); }, 0);
+          return;
+        }
+        if (!expectedUserId && incoming) expectedUserId = incoming;
         // Supabase calls listeners while holding its auth lock. Validate afterward.
         setTimeout(() => { if (!busy && !manuallyLocked) checkSession(session); }, 0);
       }
@@ -278,15 +309,17 @@
       try {
         const result = await client.auth.signInWithPassword({ email: address, password: secret });
         if (result.error) throw result.error;
+        expectedUserId = result.data.session && result.data.session.user && result.data.session.user.id || null;
         const user = await verifiedUser(result.data.session);
         if (attempt !== revision) return;
         rememberManualLock(false);
-        unlockApp(user, result.data.session);
+        await unlockApp(user, result.data.session, attempt);
       } catch (error) {
         if (attempt !== revision) return;
         lockApp();
         showStatus('');
         showError(messageFor(error));
+        if (error && error.syncFailure) showRetry('session');
       } finally {
         if (attempt === revision) { operation = ''; setBusy(false); }
       }

@@ -43,7 +43,7 @@ async function run() {
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
-    await prepareAuthenticatedPage(page, server.origin);
+    const auth = await prepareAuthenticatedPage(page, server.origin);
 
     const model = () => page.evaluate(() => ({ current: currentSchoolYear, data, years: schoolYears }));
     const storage = () => page.evaluate(({ yearsKey, dataKey }) => ({ years: localStorage.getItem(yearsKey), data: localStorage.getItem(dataKey) }), { yearsKey: YEARS_KEY, dataKey: DATA_KEY });
@@ -54,6 +54,7 @@ async function run() {
     };
     const reload = async () => { await page.reload(); await page.locator('#appRoot').waitFor({ state: 'visible' }); };
     const seed = async (record, schema = 'years') => {
+      await auth.resetWorkspace();
       await page.evaluate(({ record, schema, yearsKey, dataKey, year }) => {
         localStorage.removeItem(yearsKey);
         localStorage.removeItem(dataKey);
@@ -164,14 +165,14 @@ async function run() {
     const seedButton = page.locator('[data-action="seed-sample-students"]');
     assert.equal(await seedButton.isVisible(), true);
     const beforeFailure = await model(), storedBeforeFailure = await storage();
-    await page.evaluate(yearsKey => {
+    await page.evaluate(() => {
       const original = Storage.prototype.setItem;
       window.restoreSampleStorage = () => { Storage.prototype.setItem = original; };
       Storage.prototype.setItem = function(key, value) {
-        if (key === yearsKey) throw new DOMException('Fixture quota failure', 'QuotaExceededError');
+        if (key.startsWith('thpt-school-sync-cache-v1:')) throw new DOMException('Fixture quota failure', 'QuotaExceededError');
         return original.call(this, key, value);
       };
-    }, YEARS_KEY);
+    });
     await seedButton.click();
     assert.deepEqual(await model(), beforeFailure, 'Failed sample saves must roll back academic state');
     assert.deepEqual(await storage(), storedBeforeFailure, 'Failed sample saves must preserve persisted data');
