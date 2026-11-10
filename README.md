@@ -56,6 +56,7 @@ Mã nguồn triển khai độc lập nằm trong `teacher-site/`. Xuất bản 
 - Lưu giáo viên chủ nhiệm và phòng học cho từng lớp.
 - Mở “Xem học sinh” trong từng lớp để xem, thêm, sửa và xóa hồ sơ. Sáu lớp mẫu có danh sách học sinh mẫu theo sĩ số, được gắn nhãn **Mẫu**, ngày sinh giả lập và để trống CCCD.
 - Phân công, cập nhật, xóa giáo viên bộ môn theo lớp.
+- Bấm tên giáo viên để xem năm sinh, email liên hệ, email đăng nhập đã liên kết, các lớp giảng dạy và chủ nhiệm trong năm đang xem. Có thể bổ sung năm sinh thật và đồng bộ cùng hồ sơ; mật khẩu Supabase không thể xem lại, chỉ quản lý/đặt lại trong Supabase.
 - Khi phân công, chọn môn học trước; danh sách lớp chỉ hiển thị các lớp chưa có giáo viên môn đó. Mỗi lớp có một phân công cho mỗi môn; sửa hoặc xóa phân công cũ khi thay giáo viên.
 - Xếp, sửa, xóa tiết học theo lớp, thứ và tiết; chặn trùng khung giờ.
 - Vinh danh học sinh theo kỳ thi, môn học, điểm và danh hiệu.
@@ -86,6 +87,8 @@ Chạy `node tests/sample-students.cjs` để kiểm tra danh sách học sinh m
 Chạy `node tests/cloud-sync.cjs` để kiểm tra hai phiên trình duyệt riêng, toàn bộ loại hồ sơ, lịch sử năm học, tên/ảnh, dữ liệu cũ, chờ mạng, sửa cùng lúc và tách dữ liệu giữa các tài khoản. Kiểm thử dùng dữ liệu giả, SDK thật và API giả lập; không đọc dữ liệu tài khoản đang dùng.
 
 Chạy `node tests/teacher-portal.cjs` để kiểm tra đăng nhập giáo viên, lịch/lớp/học sinh theo phân công, chuyển năm học, quyền truy cập và cấp/thu hồi liên kết trong trang quản lý.
+
+Chạy `node tests/teacher-details.cjs` để kiểm tra hồ sơ giáo viên, năm sinh, tổng hợp lớp theo năm học, email đăng nhập thực tế và xử lý phản hồi muộn khi đổi giáo viên/tài khoản.
 
 ## Lưu ý về dữ liệu
 
