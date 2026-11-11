@@ -1,4 +1,4 @@
-/* Teacher portal. School data is filtered by the server and kept in memory only. */
+/* Live school data stays in memory; demo changes are isolated to this browser. */
 (() => {
   'use strict';
   const $ = selector => document.querySelector(selector);
@@ -12,11 +12,57 @@
   let client = null, user = null, schools = [], selectedSchool = '', portal = null;
   let generation = 0, operation = 0, view = 'schedule', classFilter = '', loading = false, failure = '';
   let poll = null, rosterClass = '', rosterSearch = '', rosterPreviousFocus = null;
+  let demoMode = false;
+  const DEMO_STORAGE_KEY = 'thpt-teacher-demo-v1';
   const requests = new Set();
+
+  function makeDemoData() {
+    const classes = [
+      {id:'demo-10a2',name:'10A2',grade:'Khối 10',room:'',isHomeroom:false},
+      {id:'demo-12a2',name:'12A2',grade:'Khối 12',room:'',isHomeroom:false}
+    ];
+    const schedule = [
+      {classId:'demo-12a2',day:1,period:1,subject:'Toán',room:''},
+      {classId:'demo-10a2',day:2,period:2,subject:'Toán',room:''},
+      {classId:'demo-12a2',day:2,period:4,subject:'Toán',room:''},
+      {classId:'demo-10a2',day:3,period:3,subject:'Toán',room:''},
+      {classId:'demo-12a2',day:4,period:2,subject:'Toán',room:''},
+      {classId:'demo-10a2',day:5,period:1,subject:'Toán',room:''}
+    ];
+    const students = Array.from({length:39}, (_, index) => ({
+      id:'demo-student-' + String(index + 1).padStart(2, '0'),
+      classId:index < 20 ? 'demo-10a2' : 'demo-12a2',
+      fullName:'Học sinh mẫu ' + String(index + 1).padStart(2, '0'),
+      birthDate:(index < 20 ? '2010' : '2008') + '-' + String(index % 12 + 1).padStart(2, '0') + '-' + String(index % 27 + 1).padStart(2, '0'),
+      isSample:true
+    }));
+    const teacher = {name:'Giáo viên mẫu',email:'giaovien.demo@example.test',phone:'0000 000 000',status:'Đang giảng dạy',subjects:['Toán']};
+    const demo = {
+      school:{name:'THPT Lê Quý Đôn',avatar:null}, teacher,
+      years:['2026-2027','2025-2026','2024-2025'], current:'2026-2027',
+      classes, schedule, studentProfiles:students,
+      assignments:[...new Map(schedule.map(item => [item.classId + '|' + item.subject, {classId:item.classId,subject:item.subject,teacher:teacher.name,isHomeroom:false}])).values()]
+    };
+    try {
+      const saved = JSON.parse(localStorage.getItem(DEMO_STORAGE_KEY) || 'null');
+      if (saved && saved.teacher && typeof saved.teacher === 'object') Object.assign(demo.teacher, saved.teacher);
+      if (Array.isArray(saved?.schedule)) demo.schedule = saved.schedule.filter(item => item && demo.classes.some(classItem => classItem.id === item.classId) && Number(item.day) >= 1 && Number(item.day) <= 6 && Number(item.period) >= 1 && Number(item.period) <= 15 && typeof item.subject === 'string').map(item => ({classId:item.classId,day:Number(item.day),period:Number(item.period),subject:item.subject,room:String(item.room || '')}));
+      if (demo.years.includes(saved?.current)) demo.current = saved.current;
+    } catch (error) {}
+    demo.assignments = [...new Map(demo.schedule.map(item => [item.classId + '|' + item.subject, {classId:item.classId,subject:item.subject,teacher:demo.teacher.name,isHomeroom:false}])).values()];
+    return demo;
+  }
+  function saveDemoData() {
+    if (!demoMode || !portal) return false;
+    try {
+      localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify({teacher:portal.teacher,schedule:portal.schedule,current:portal.current}));
+      return true;
+    } catch (error) { return false; }
+  }
 
   function setStatus(message, error = false) {
     $('#teacherStatus').textContent = message;
-    $('#teacherStatus').dataset.state = error ? 'error' : 'ready';
+    $('#teacherStatus').dataset.state = error ? 'error' : demoMode ? 'demo' : 'ready';
   }
   function cancelRequests() {
     for (const controller of requests) controller.abort();
@@ -68,6 +114,13 @@
     image?.addEventListener('error', () => { if (image.isConnected && $('#schoolMark img') === image) $('#schoolMark').innerHTML = icon('school'); }, {once:true});
     document.title = (portal?.teacher?.name ? portal.teacher.name + ' — ' : '') + name + ' | Cổng giáo viên';
     $('#teacherInitials').textContent = initials(portal?.teacher?.name);
+    $('#currentAccountName').textContent = demoMode ? (portal?.teacher?.email || 'giaovien.demo@example.test') : (user?.email || '');
+    $('#accountRole').textContent = demoMode ? 'Bản demo · chỉ lưu trên thiết bị' : 'Tài khoản giáo viên';
+    $('#sideNoteTitle').textContent = demoMode ? 'Đang dùng dữ liệu mẫu' : 'Đồng hành cùng học sinh';
+    $('#sideNoteCopy').textContent = demoMode ? 'Mọi chỉnh sửa chỉ lưu trong trình duyệt này; không gửi lên nhà trường.' : 'Lịch dạy và lớp học được cập nhật từ phân công của nhà trường.';
+    $('#teacherDemoEdit').hidden = !demoMode;
+    $('#teacherRefresh').title = demoMode ? 'Làm mới bản demo' : 'Cập nhật dữ liệu';
+    $('#teacherRefresh').setAttribute('aria-label', demoMode ? 'Làm mới bản demo' : 'Cập nhật dữ liệu');
   }
   function updateSelectors() {
     const schoolSelect = $('#teacherSchool'), yearSelect = $('#teacherYear');
@@ -80,9 +133,11 @@
   }
   function startPolling() {
     if (poll) clearInterval(poll);
+    if (demoMode) return;
     poll = setInterval(() => { if (!document.hidden && user && !loading) refresh(); }, 30000);
   }
   async function refresh({owner = selectedSchool, year = portal?.current || null} = {}) {
+    if (demoMode) { setStatus('BẢN DEMO · dữ liệu mẫu, chỉ lưu trên thiết bị này.'); return; }
     if (!user || !client || loading || $('#appRoot').hidden) return;
     const at = generation, sequence = ++operation;
     cancelRequests();
@@ -172,6 +227,46 @@
     const profile = portal.teacher;
     return '<div class="section-head"><div><h2>Hồ sơ của tôi</h2><p>Thông tin do nhà trường quản lý và cập nhật.</p></div></div><section class="surface profile-panel"><div class="profile-heading"><div class="profile-avatar">' + esc(initials(profile.name)) + '</div><div><h3>' + esc(profile.name) + '</h3><span class="badge">' + esc(profile.status || 'Giáo viên') + '</span></div></div><dl class="profile-grid"><div><dt>Email hồ sơ</dt><dd>' + esc(profile.email || 'Chưa cập nhật') + '</dd></div><div><dt>Số điện thoại</dt><dd>' + esc(profile.phone || 'Chưa cập nhật') + '</dd></div><div><dt>Môn giảng dạy</dt><dd>' + esc((profile.subjects || []).join(', ') || 'Chưa cập nhật') + '</dd></div><div><dt>Lớp chủ nhiệm</dt><dd>' + esc(portal.classes.filter(homeroom).map(item => item.name).join(', ') || 'Chưa phân công') + '</dd></div><div><dt>Email đăng nhập</dt><dd>' + esc(user?.email || '') + '</dd></div><div><dt>Trường học</dt><dd>' + esc(portal.school.name) + '</dd></div></dl><div class="profile-note">Nếu thông tin cần thay đổi, vui lòng liên hệ quản trị viên nhà trường để cập nhật hồ sơ.</div></section>';
   }
+  function demoLessonRow(item = {}) {
+    const classOptions = portal.classes.map(classItem => '<option value="' + esc(classItem.id) + '"' + (item.classId === classItem.id ? ' selected' : '') + '>' + esc(classItem.name) + '</option>').join('');
+    const dayOptions = dayLabels.map((label,index) => '<option value="' + (index + 1) + '"' + (Number(item.day) === index + 1 ? ' selected' : '') + '>' + esc(label) + '</option>').join('');
+    return '<div class="demo-lesson-row" data-demo-lesson><label><span>Lớp</span><select name="classId" required>' + classOptions + '</select></label><label><span>Ngày</span><select name="day" required>' + dayOptions + '</select></label><label><span>Tiết</span><input name="period" type="number" min="1" max="15" value="' + esc(item.period || 1) + '" required></label><label class="demo-subject-field"><span>Môn học</span><input name="subject" type="text" value="' + esc(item.subject || '') + '" maxlength="80" required></label><label class="demo-room-field"><span>Phòng</span><input name="room" type="text" value="' + esc(item.room || '') + '" maxlength="40" placeholder="Không bắt buộc"></label><button class="btn btn-secondary demo-remove-lesson" type="button" data-demo-remove-lesson aria-label="Xóa tiết demo">Xóa</button></div>';
+  }
+  function openDemoEditor() {
+    if (!demoMode || !portal) return;
+    closeRoster();
+    rosterPreviousFocus = document.activeElement;
+    $('#teacherRosterRoot').innerHTML = '<div class="roster-backdrop" id="teacherDemoBackdrop"><section id="teacherRosterDialog" class="roster-dialog demo-dialog" role="dialog" aria-modal="true" aria-labelledby="teacherDemoTitle"><form id="teacherDemoForm"><div class="roster-head"><div><h2 id="teacherDemoTitle">Chỉnh sửa dữ liệu demo</h2><p>Thay đổi chỉ lưu trong trình duyệt trên thiết bị này.</p></div><button class="icon-button" type="button" data-demo-cancel aria-label="Đóng chỉnh sửa">' + icon('close') + '</button></div><div class="demo-editor-scroll"><div class="demo-form-grid"><label><span>Họ và tên giáo viên</span><input name="teacherName" type="text" maxlength="100" value="' + esc(portal.teacher.name) + '" required></label><label><span>Email mẫu</span><input name="teacherEmail" type="email" maxlength="254" value="' + esc(portal.teacher.email || '') + '"></label><label><span>Số điện thoại mẫu</span><input name="teacherPhone" type="text" maxlength="30" value="' + esc(portal.teacher.phone || '') + '"></label><label><span>Môn giảng dạy</span><input name="teacherSubjects" type="text" maxlength="160" value="' + esc((portal.teacher.subjects || []).join(', ')) + '"><small>Ngăn cách nhiều môn bằng dấu phẩy.</small></label></div><div class="demo-lessons-heading"><div><h3>Thời khóa biểu mẫu</h3><p>Đổi lớp, ngày, tiết, môn hoặc thêm và xóa tiết.</p></div><button class="btn btn-secondary" type="button" data-demo-add-lesson>+ Thêm tiết</button></div><div id="demoLessonRows" class="demo-lesson-list">' + portal.schedule.map(item => demoLessonRow(item)).join('') + '</div></div><div class="demo-editor-actions"><button class="btn btn-secondary demo-reset-button" type="button" data-demo-reset>Khôi phục dữ liệu mẫu</button><div><button class="btn btn-secondary" type="button" data-demo-cancel>Hủy</button><button class="btn btn-primary" type="submit">Lưu demo</button></div></div></form></section></div>';
+    $('#appRoot').setAttribute('inert', '');
+    $('#teacherDemoForm [name="teacherName"]').focus();
+  }
+  function saveDemoEditor(form) {
+    const values = new FormData(form);
+    const teacherName = String(values.get('teacherName') || '').trim();
+    if (!teacherName) { form.elements.teacherName.focus(); return; }
+    const lessons = [...form.querySelectorAll('[data-demo-lesson]')].map(row => ({
+      classId:String(row.querySelector('[name="classId"]').value),
+      day:Number(row.querySelector('[name="day"]').value),
+      period:Number(row.querySelector('[name="period"]').value),
+      subject:String(row.querySelector('[name="subject"]').value).trim(),
+      room:String(row.querySelector('[name="room"]').value).trim()
+    })).filter(item => item.subject);
+    portal.teacher = {...portal.teacher,name:teacherName,email:String(values.get('teacherEmail') || '').trim(),phone:String(values.get('teacherPhone') || '').trim(),subjects:String(values.get('teacherSubjects') || '').split(',').map(item => item.trim()).filter(Boolean)};
+    portal.schedule = lessons;
+    portal.assignments = [...new Map(lessons.map(item => [item.classId + '|' + item.subject,{classId:item.classId,subject:item.subject,teacher:teacherName,isHomeroom:false}])).values()];
+    updateSelectors(); setBrand(); render();
+    const saved = saveDemoData();
+    closeRoster();
+    setStatus(saved ? 'Đã lưu chỉnh sửa demo trên thiết bị này.' : 'Đã đổi dữ liệu trong phiên này; trình duyệt không cho phép lưu cục bộ.', !saved);
+  }
+  function resetDemoData() {
+    if (!demoMode) return;
+    try { localStorage.removeItem(DEMO_STORAGE_KEY); } catch (error) {}
+    portal = makeDemoData();
+    classFilter = ''; view = 'schedule';
+    updateSelectors(); setBrand(); render(); closeRoster();
+    setStatus('Đã khôi phục dữ liệu demo mẫu.');
+  }
   function birthDate(value) {
     const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ''));
     return match ? match[3] + '/' + match[2] + '/' + match[1] : 'Chưa cập nhật';
@@ -204,9 +299,22 @@
   }
   window.schoolAppAuthHooks = {
     authStorageKey: 'thpt-teacher-auth-v1',
+    enterDemo() {
+      cancelRequests(); ++generation; ++operation;
+      demoMode = true; user = {id:'demo-user',email:'giaovien.demo@example.test'}; client = null;
+      schools = [{owner_id:'demo-school',school:{name:'THPT Lê Quý Đôn'}}]; selectedSchool = 'demo-school';
+      portal = makeDemoData(); failure = ''; classFilter = ''; view = 'schedule'; loading = false;
+      if (poll) clearInterval(poll); poll = null;
+      closeRoster(); setMenu(false);
+      const screen = $('#authScreen'), app = $('#appRoot');
+      screen.hidden = true; screen.setAttribute('inert', ''); screen.setAttribute('aria-hidden', 'true');
+      app.hidden = false; app.removeAttribute('inert'); app.setAttribute('aria-hidden', 'false');
+      updateSelectors(); setBrand(); setLoading(false); render();
+      setStatus('BẢN DEMO · dữ liệu mẫu, chỉnh sửa chỉ lưu trên thiết bị này.');
+    },
     async prepare(nextUser, nextClient) {
       cancelRequests(); ++generation; ++operation;
-      user = nextUser; client = nextClient; schools = []; selectedSchool = ''; portal = null; failure = ''; classFilter = ''; view = 'schedule';
+      demoMode = false; user = nextUser; client = nextClient; schools = []; selectedSchool = ''; portal = null; failure = ''; classFilter = ''; view = 'schedule';
       const at = generation, sequence = operation;
       try {
         const rows = await rpc('list_teacher_schools', {}, at, sequence);
@@ -221,13 +329,14 @@
       }
     },
     unlock() {
+      demoMode = false;
       updateSelectors(); setBrand(); setLoading(false); render(); startPolling();
       setStatus(portal ? 'Dữ liệu được cập nhật từ nhà trường.' : 'Chưa có trường học được liên kết với tài khoản.');
     },
     lock() {
       ++generation; ++operation; cancelRequests();
       if (poll) clearInterval(poll); poll = null;
-      user = null; client = null; schools = []; portal = null; selectedSchool = ''; classFilter = ''; failure = ''; loading = false;
+      demoMode = false; user = null; client = null; schools = []; portal = null; selectedSchool = ''; classFilter = ''; failure = ''; loading = false;
       closeRoster(); setMenu(false); $('#teacherPage').replaceChildren();
       updateSelectors(); setBrand(); setStatus('Đang tải dữ liệu…');
     }
@@ -235,9 +344,22 @@
   $('#teacherMenu').addEventListener('click', () => setMenu(!$('#teacherSidebar').classList.contains('open')));
   $('#teacherBackdrop').addEventListener('click', () => setMenu(false));
   $('#teacherRefresh').addEventListener('click', () => refresh());
+  $('#teacherDemoEdit').addEventListener('click', openDemoEditor);
   $('#teacherSchool').addEventListener('change', event => { closeRoster(); refresh({owner:event.target.value,year:null}); });
-  $('#teacherYear').addEventListener('change', event => { closeRoster(); refresh({year:event.target.value}); });
+  $('#teacherYear').addEventListener('change', event => {
+    closeRoster();
+    if (demoMode && portal) { portal.current = event.target.value; saveDemoData(); updateSelectors(); render(); setStatus('BẢN DEMO · đang xem năm học ' + yearLabel(portal.current) + '.'); return; }
+    refresh({year:event.target.value});
+  });
   document.addEventListener('click', event => {
+    if (event.target.closest('[data-demo-cancel]') || event.target.id === 'teacherDemoBackdrop') closeRoster();
+    if (event.target.closest('[data-demo-add-lesson]') && demoMode) {
+      const first = portal?.classes[0];
+      $('#demoLessonRows')?.insertAdjacentHTML('beforeend', demoLessonRow({classId:first?.id,day:1,period:1,subject:'',room:''}));
+      $('#demoLessonRows [data-demo-lesson]:last-child [name="subject"]')?.focus();
+    }
+    if (event.target.closest('[data-demo-remove-lesson]')) event.target.closest('[data-demo-lesson]')?.remove();
+    if (event.target.closest('[data-demo-reset]')) resetDemoData();
     const navigation = event.target.closest('[data-teacher-view]');
     if (navigation && user) { view = navigation.dataset.teacherView; setMenu(false); render(); }
     const roster = event.target.closest('[data-teacher-roster]'); if (roster) openRoster(roster.dataset.teacherRoster);
@@ -245,6 +367,7 @@
     if (event.target.closest('[data-teacher-retry]')) refresh();
   });
   document.addEventListener('change', event => { if (event.target.id === 'teacherClassFilter') { classFilter = event.target.value; render(); $('#teacherClassFilter')?.focus(); } });
+  document.addEventListener('submit', event => { if (event.target.id === 'teacherDemoForm') { event.preventDefault(); saveDemoEditor(event.target); } });
   document.addEventListener('input', event => { if (event.target.id === 'teacherStudentSearch') { rosterSearch = event.target.value; renderRosterRows(); } });
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape') { closeRoster(); setMenu(false); }
@@ -257,3 +380,4 @@
   });
   window.addEventListener('focus', () => { if (user && !loading && !document.hidden) refresh(); });
 })();
+
