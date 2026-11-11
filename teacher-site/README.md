@@ -7,3 +7,7 @@ Sites project ID: `appgprj_6af2efcc322c8191a15ffb6f99742655`. Giữ nguyên ID n
 Thư mục này giữ mã nguồn giáo viên để kiểm thử và tiếp tục phát triển. Website quản lý loại thư mục này khỏi GitHub Pages bằng `_config.yml`. Website giáo viên được xuất bản riêng trên Sites, với các tệp ở đây nằm trong thư mục `dist` của dự án `/workspace/sites/thpt-giao-vien`.
 
 Hai website cùng dùng cấu hình Supabase công khai. Tài khoản quản lý cấp quyền cho tài khoản giáo viên qua các RPC trong `supabase/teacher-portal.sql`; không sao chép dữ liệu học sinh vào mã nguồn hoặc website tĩnh.
+
+Bản demo: https://thpt-le-quy-don-giao-vien.twinmonk2.chatgpt.site/?demo=1
+
+Demo dùng dữ liệu mẫu. Có thể chỉnh sửa hồ sơ và thời khóa biểu; thay đổi chỉ lưu trong trình duyệt hiện tại, không gửi lên Supabase.
