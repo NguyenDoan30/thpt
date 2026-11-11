@@ -16,6 +16,12 @@
     const accountName = document.getElementById('currentAccountName');
     const hooks = window.schoolAppAuthHooks;
     if (!app || !screen || !form || !hooks) return;
+    const demoMode = new URLSearchParams(window.location.search).get('demo') === '1';
+    if (demoMode && typeof hooks.enterDemo === 'function') {
+      hooks.enterDemo();
+      logout.addEventListener('click', () => { window.location.href = window.location.pathname; });
+      return;
+    }
     const MANUAL_LOCK_KEY = 'thpt-school-auth-manually-locked-v1' + (hooks.authStorageKey ? ':' + hooks.authStorageKey : '');
 
     let client = null;
@@ -372,3 +378,4 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
   else start();
 })();
+
