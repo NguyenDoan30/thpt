@@ -10,7 +10,7 @@
   const initials = value => String(value || '').trim().split(/\s+/).filter(Boolean).slice(-2).map(part => part[0]).join('').toLocaleUpperCase('vi') || 'GV';
   const dayLabels = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
   let client = null, user = null, schools = [], selectedSchool = '', portal = null;
-  let generation = 0, operation = 0, view = 'schedule', classFilter = '', loading = false, failure = '';
+  let generation = 0, operation = 0, view = 'schedule', loading = false, failure = '';
   let poll = null, rosterClass = '', rosterSearch = '', rosterPreviousFocus = null;
   let demoMode = false;
   const DEMO_STORAGE_KEY = 'thpt-teacher-demo-v1';
@@ -148,14 +148,13 @@
       if (!Array.isArray(rows)) throw new Error('invalid_schools');
       schools = rows.filter(school => typeof school.owner_id === 'string' && school.school);
       const nextOwner = schools.some(school => school.owner_id === owner) ? owner : schools[0]?.owner_id || '';
-      if (nextOwner !== selectedSchool) { closeRoster(); classFilter = ''; year = null; }
+      if (nextOwner !== selectedSchool) { closeRoster(); year = null; }
       selectedSchool = nextOwner;
       if (!selectedSchool) { portal = null; closeRoster(); }
       else {
         const next = normalizePortal(await rpc('get_teacher_portal', {p_owner_id:selectedSchool, p_year:year}, at, sequence));
-        if (portal?.current !== next.current) { closeRoster(); classFilter = ''; }
+        if (portal?.current !== next.current) closeRoster();
         portal = next;
-        if (classFilter && !portal.classes.some(item => item.id === classFilter)) classFilter = '';
         if (rosterClass && !portal.classes.some(item => item.id === rosterClass)) closeRoster();
       }
       if (!stillActive(at, sequence)) return;
@@ -197,10 +196,9 @@
     $('#teacherPage').innerHTML = hero + stats + (view === 'schedule' ? renderSchedule() : view === 'classes' ? renderClasses() : renderProfile());
   }
   function renderSchedule() {
-    const options = '<option value="">Tất cả lớp</option>' + portal.classes.map(item => '<option value="' + esc(item.id) + '"' + (item.id === classFilter ? ' selected' : '') + '>' + esc(item.name) + '</option>').join('');
-    const head = '<div class="section-head"><div><h2>Thời khóa biểu của tôi</h2><p>Lịch giảng dạy hằng tuần trong năm học ' + esc(yearLabel(portal.current)) + '.</p></div><label class="sr-only" for="teacherClassFilter">Lọc lịch dạy theo lớp</label><select id="teacherClassFilter">' + options + '</select></div>';
-    const lessons = portal.schedule.filter(item => !classFilter || item.classId === classFilter);
-    if (!lessons.length) return head + empty('Chưa có tiết dạy', classFilter ? 'Lớp này chưa có tiết dạy của thầy cô trong thời khóa biểu. Nhà trường sẽ cập nhật sau khi xếp lịch.' : 'Nhà trường chưa xếp thời khóa biểu cho thầy cô trong năm học này.');
+    const head = '<div class="section-head"><div><h2>Thời khóa biểu của tôi</h2><p>Lịch của tất cả lớp được phân công trong năm học ' + esc(yearLabel(portal.current)) + '.</p></div></div>';
+    const lessons = portal.schedule;
+    if (!lessons.length) return head + empty('Chưa có tiết dạy', 'Nhà trường chưa xếp thời khóa biểu cho thầy cô trong năm học này.');
     const today = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(new Intl.DateTimeFormat('en-US', {weekday:'short',timeZone:'Asia/Ho_Chi_Minh'}).format(new Date()));
     const maxPeriod = Math.max(5, ...lessons.map(item => Math.max(0, Math.min(15, Number(item.period) || 0))));
     const tones = new Map([...new Set(lessons.map(item => item.subject))].map((subject,index) => [subject, ['', 'tone-blue', 'tone-gold'][index % 3]]));
@@ -263,7 +261,7 @@
     if (!demoMode) return;
     try { localStorage.removeItem(DEMO_STORAGE_KEY); } catch (error) {}
     portal = makeDemoData();
-    classFilter = ''; view = 'schedule';
+    view = 'schedule';
     updateSelectors(); setBrand(); render(); closeRoster();
     setStatus('Đã khôi phục dữ liệu demo mẫu.');
   }
@@ -303,7 +301,7 @@
       cancelRequests(); ++generation; ++operation;
       demoMode = true; user = {id:'demo-user',email:'giaovien.demo@example.test'}; client = null;
       schools = [{owner_id:'demo-school',school:{name:'THPT Lê Quý Đôn'}}]; selectedSchool = 'demo-school';
-      portal = makeDemoData(); failure = ''; classFilter = ''; view = 'schedule'; loading = false;
+      portal = makeDemoData(); failure = ''; view = 'schedule'; loading = false;
       if (poll) clearInterval(poll); poll = null;
       closeRoster(); setMenu(false);
       const screen = $('#authScreen'), app = $('#appRoot');
@@ -314,7 +312,7 @@
     },
     async prepare(nextUser, nextClient) {
       cancelRequests(); ++generation; ++operation;
-      demoMode = false; user = nextUser; client = nextClient; schools = []; selectedSchool = ''; portal = null; failure = ''; classFilter = ''; view = 'schedule';
+      demoMode = false; user = nextUser; client = nextClient; schools = []; selectedSchool = ''; portal = null; failure = ''; view = 'schedule';
       const at = generation, sequence = operation;
       try {
         const rows = await rpc('list_teacher_schools', {}, at, sequence);
@@ -336,7 +334,7 @@
     lock() {
       ++generation; ++operation; cancelRequests();
       if (poll) clearInterval(poll); poll = null;
-      demoMode = false; user = null; client = null; schools = []; portal = null; selectedSchool = ''; classFilter = ''; failure = ''; loading = false;
+      demoMode = false; user = null; client = null; schools = []; portal = null; selectedSchool = ''; failure = ''; loading = false;
       closeRoster(); setMenu(false); $('#teacherPage').replaceChildren();
       updateSelectors(); setBrand(); setStatus('Đang tải dữ liệu…');
     }
@@ -366,7 +364,6 @@
     if (event.target.closest('#teacherRosterClose') || event.target.classList.contains('roster-backdrop')) closeRoster();
     if (event.target.closest('[data-teacher-retry]')) refresh();
   });
-  document.addEventListener('change', event => { if (event.target.id === 'teacherClassFilter') { classFilter = event.target.value; render(); $('#teacherClassFilter')?.focus(); } });
   document.addEventListener('submit', event => { if (event.target.id === 'teacherDemoForm') { event.preventDefault(); saveDemoEditor(event.target); } });
   document.addEventListener('input', event => { if (event.target.id === 'teacherStudentSearch') { rosterSearch = event.target.value; renderRosterRows(); } });
   document.addEventListener('keydown', event => {
