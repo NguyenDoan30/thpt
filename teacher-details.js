@@ -75,6 +75,8 @@
     status.textContent = value === null ? 'Đã xóa năm sinh đã nhập.' : 'Đã lưu năm sinh.'; status.dataset.state = 'success';
   }
   document.addEventListener('click', event => {
+    const row = event.target.closest('[data-teacher-row]');
+    if (row && !event.target.closest('button, a, input, select, [data-action]')) { openDetails(row.dataset.teacherRow); return; }
     const trigger = event.target.closest('[data-teacher-detail]');
     if (trigger) { openDetails(trigger.dataset.teacherDetail); return; }
     const root = event.target.closest('#teacherDetails'); if (!root || !current(root, detailVersion)) return;
@@ -87,6 +89,8 @@
     event.preventDefault(); saveBirthYear(event.target);
   });
   document.addEventListener('keydown', event => {
+    const row = event.target.closest('[data-teacher-row]');
+    if (row && event.target === row && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); openDetails(row.dataset.teacherRow); return; }
     const root = $('#teacherDetails'); if (!root || !current(root, detailVersion)) return;
     if (event.key === 'Escape') { ++detailVersion; closeModal(); return; }
     if (event.key !== 'Tab') return;
