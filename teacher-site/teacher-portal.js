@@ -10,7 +10,7 @@
   const initials = value => String(value || '').trim().split(/\s+/).filter(Boolean).slice(-2).map(part => part[0]).join('').toLocaleUpperCase('vi') || 'GV';
   const dayLabels = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
   let client = null, user = null, schools = [], selectedSchool = '', portal = null;
-  let generation = 0, operation = 0, view = 'schedule', loading = false, failure = '';
+  let generation = 0, operation = 0, view = 'home', loading = false, failure = '';
   let poll = null, rosterClass = '', rosterSearch = '', rosterPreviousFocus = null;
   let demoMode = false;
   const DEMO_STORAGE_KEY = 'thpt-teacher-demo-v1';
@@ -137,7 +137,7 @@
     poll = setInterval(() => { if (!document.hidden && user && !loading) refresh(); }, 30000);
   }
   async function refresh({owner = selectedSchool, year = portal?.current || null} = {}) {
-    if (demoMode) { setStatus('BẢN DEMO · dữ liệu mẫu, chỉ lưu trên thiết bị này.'); return; }
+    if (demoMode) { render(); setStatus('BẢN DEMO · dữ liệu mẫu, chỉ lưu trên thiết bị này.'); return; }
     if (!user || !client || loading || $('#appRoot').hidden) return;
     const at = generation, sequence = ++operation;
     cancelRequests();
@@ -178,7 +178,7 @@
     return '<div class="stat-card"><div class="stat-top"><span class="stat-label">' + esc(label) + '</span><span class="stat-icon ' + tone + '">' + icon(symbol) + '</span></div><div class="stat-value">' + esc(value) + '</div><div class="stat-foot">' + esc(detail) + '</div></div>';
   }
   function render() {
-    const labels = {schedule:'Lịch dạy',classes:'Lớp phụ trách',profile:'Hồ sơ của tôi'};
+    const labels = {home:'Trang chủ',schedule:'Lịch dạy',classes:'Lớp phụ trách',profile:'Hồ sơ của tôi'};
     $('#teacherBreadcrumb').textContent = labels[view];
     document.querySelectorAll('[data-teacher-view]').forEach(button => {
       button.classList.toggle('active', button.dataset.teacherView === view);
@@ -193,7 +193,16 @@
     const date = new Intl.DateTimeFormat('vi-VN', {day:'2-digit',month:'long',year:'numeric',timeZone:'Asia/Ho_Chi_Minh'}).format(new Date());
     const hero = '<section class="hero"><div><div class="eyebrow">Không gian dành cho thầy cô</div><h1>Xin chào, ' + esc(profile.name) + '</h1><p>Cùng theo dõi lịch dạy và đồng hành cùng học sinh mỗi ngày.</p></div><div class="hero-date">' + esc(days) + '<strong>' + esc(date) + '</strong></div></section>';
     const stats = '<div class="stats">' + stat('Lớp phụ trách', portal.classes.length, 'Theo phân công trong năm học', 'book') + stat('Hồ sơ học sinh', portal.studentProfiles.length, 'Trong các lớp được phân công', 'users', 'blue') + stat('Tiết dạy mỗi tuần', portal.schedule.length, 'Theo thời khóa biểu hiện tại', 'clock') + stat('Lớp chủ nhiệm', portal.classes.filter(homeroom).length, 'Được nhà trường phân công', 'user', 'gold') + '</div>';
-    $('#teacherPage').innerHTML = hero + stats + (view === 'schedule' ? renderSchedule() : view === 'classes' ? renderClasses() : renderProfile());
+    $('#teacherPage').innerHTML = hero + stats + (view === 'home' ? renderHome() : view === 'schedule' ? renderSchedule() : view === 'classes' ? renderClasses() : renderProfile());
+  }
+  function renderHome() {
+    const day = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(new Intl.DateTimeFormat('en-US', {weekday:'short',timeZone:'Asia/Ho_Chi_Minh'}).format(new Date()));
+    const date = new Intl.DateTimeFormat('vi-VN', {weekday:'long',day:'2-digit',month:'2-digit',timeZone:'Asia/Ho_Chi_Minh'}).format(new Date());
+    const lessons = portal.schedule.filter(item => Number(item.day) === day).slice().sort((a,b) => Number(a.period) - Number(b.period) || String(classById(a.classId)?.name || '').localeCompare(String(classById(b.classId)?.name || ''), 'vi'));
+    const today = lessons.length ? '<ul class="home-lessons">' + lessons.map(item => '<li><span class="home-period">Tiết ' + esc(item.period) + '</span><div><strong>' + esc(item.subject) + '</strong><span>Lớp ' + esc(classById(item.classId)?.name || 'chưa xác định') + (item.room ? ' · Phòng ' + esc(item.room) : '') + '</span></div></li>').join('') + '</ul>' : '<div class="home-empty">' + icon('calendar') + '<strong>Hôm nay chưa có tiết dạy</strong><p>Thầy cô có thể xem lịch các ngày khác trong thời khóa biểu.</p></div>';
+    const classes = portal.classes.slice().sort((a,b) => String(a.name).localeCompare(String(b.name), 'vi'));
+    const preview = classes.length ? '<div class="home-classes">' + classes.slice(0,3).map(item => '<button class="home-class" type="button" data-teacher-roster="' + esc(item.id) + '" aria-label="Xem học sinh lớp ' + esc(item.name) + '"><span class="class-mark">' + esc(item.name) + '</span><span class="home-class-copy"><strong>' + esc(classSubjects(item.id).join(', ') || (homeroom(item) ? 'Lớp chủ nhiệm' : 'Chưa phân công môn')) + '</strong><small>' + rosterFor(item.id).length + ' hồ sơ học sinh' + (homeroom(item) ? ' · Chủ nhiệm' : '') + '</small></span>' + icon('arrow') + '</button>').join('') + '</div>' : '<div class="home-empty">' + icon('book') + '<strong>Chưa có lớp phụ trách</strong><p>Các lớp sẽ xuất hiện khi nhà trường phân công cho thầy cô.</p></div>';
+    return '<div id="teacherHome"><div class="home-grid"><section class="surface home-panel"><div class="home-panel-head"><div><h2>Lịch dạy hôm nay</h2><p>' + esc(date) + '</p></div><span class="badge">' + lessons.length + ' tiết</span></div>' + today + '<button class="home-link" type="button" data-teacher-view="schedule">Xem lịch dạy trong tuần ' + icon('arrow') + '</button></section><section class="surface home-panel"><div class="home-panel-head"><div><h2>Lớp phụ trách</h2><p>Năm học ' + esc(yearLabel(portal.current)) + '</p></div><span class="badge">' + classes.length + ' lớp</span></div>' + preview + '<button class="home-link" type="button" data-teacher-view="classes">Xem tất cả lớp ' + icon('arrow') + '</button></section></div><div class="home-shortcuts" aria-label="Truy cập nhanh"><button type="button" data-teacher-view="schedule">' + icon('calendar') + '<span>Lịch dạy</span>' + icon('arrow') + '</button><button type="button" data-teacher-view="classes">' + icon('book') + '<span>Lớp phụ trách</span>' + icon('arrow') + '</button><button type="button" data-teacher-view="profile">' + icon('user') + '<span>Hồ sơ của tôi</span>' + icon('arrow') + '</button></div></div>';
   }
   function renderSchedule() {
     const head = '<div class="section-head"><div><h2>Thời khóa biểu của tôi</h2><p>Lịch của tất cả lớp được phân công trong năm học ' + esc(yearLabel(portal.current)) + '.</p></div></div>';
@@ -261,7 +270,7 @@
     if (!demoMode) return;
     try { localStorage.removeItem(DEMO_STORAGE_KEY); } catch (error) {}
     portal = makeDemoData();
-    view = 'schedule';
+    view = 'home';
     updateSelectors(); setBrand(); render(); closeRoster();
     setStatus('Đã khôi phục dữ liệu demo mẫu.');
   }
@@ -301,7 +310,7 @@
       cancelRequests(); ++generation; ++operation;
       demoMode = true; user = {id:'demo-user',email:'giaovien.demo@example.test'}; client = null;
       schools = [{owner_id:'demo-school',school:{name:'THPT Lê Quý Đôn'}}]; selectedSchool = 'demo-school';
-      portal = makeDemoData(); failure = ''; view = 'schedule'; loading = false;
+      portal = makeDemoData(); failure = ''; view = 'home'; loading = false;
       if (poll) clearInterval(poll); poll = null;
       closeRoster(); setMenu(false);
       const screen = $('#authScreen'), app = $('#appRoot');
@@ -312,7 +321,7 @@
     },
     async prepare(nextUser, nextClient) {
       cancelRequests(); ++generation; ++operation;
-      demoMode = false; user = nextUser; client = nextClient; schools = []; selectedSchool = ''; portal = null; failure = ''; view = 'schedule';
+      demoMode = false; user = nextUser; client = nextClient; schools = []; selectedSchool = ''; portal = null; failure = ''; view = 'home';
       const at = generation, sequence = operation;
       try {
         const rows = await rpc('list_teacher_schools', {}, at, sequence);
@@ -377,4 +386,3 @@
   });
   window.addEventListener('focus', () => { if (user && !loading && !document.hidden) refresh(); });
 })();
-

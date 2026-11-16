@@ -11,3 +11,5 @@ Hai website cùng dùng cấu hình Supabase công khai. Tài khoản quản lý
 Bản demo: https://thpt-le-quy-don-giao-vien.twinmonk2.chatgpt.site/?demo=1
 
 Demo dùng dữ liệu mẫu. Có thể chỉnh sửa hồ sơ và thời khóa biểu; thay đổi chỉ lưu trong trình duyệt hiện tại, không gửi lên Supabase.
+
+Trang chủ là màn hình mặc định khi đăng nhập hoặc mở demo. Trang hiển thị tổng quan, lịch dạy hôm nay theo múi giờ Việt Nam, các lớp phụ trách và nút mở nhanh lịch tuần, danh sách lớp, hồ sơ. Mã trong thư mục này được đồng bộ từ bản website giáo viên đã xuất bản.
