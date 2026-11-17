@@ -57,3 +57,24 @@ Bảng liên kết không cấp quyền đọc/ghi trực tiếp cho trình duy�
 riêng tài khoản trên `school_workspaces` giữ nguyên; giáo viên không nhận toàn
 bộ bản dữ liệu của tài khoản quản lý. Một tài khoản giáo viên có thể được liên
 kết với nhiều trường, nhưng chỉ một hồ sơ tại mỗi trường.
+
+
+## Sổ điểm giáo viên
+
+Sau khi cập nhật mã trang giáo viên, chạy lại toàn bộ `supabase/teacher-portal.sql`
+trong Supabase → SQL Editor để tạo bảng và hai hàm sổ điểm. Script có thể chạy
+lại an toàn; bảng điểm được lưu riêng theo giáo viên, lớp, môn học và năm học,
+không bị xóa khi dữ liệu hồ sơ trường được đồng bộ.
+
+Trong danh sách học sinh, giáo viên chọn học phần, tạo hoặc chọn bài đánh giá,
+nhập điểm 0–10 (tối đa một chữ số thập phân), rồi bấm **Lưu điểm**. Máy chủ chỉ
+cho phép lưu nếu giáo viên đang được phân công đúng môn và lớp; mã học sinh phải
+thuộc lớp đó. Giáo viên không thể đọc/ghi trực tiếp bảng điểm.
+
+- `list_teacher_gradebooks(p_owner_id, p_year, p_class_id, p_subject)` liệt kê
+  bài đánh giá của chính giáo viên đang đăng nhập.
+- `save_teacher_gradebook(p_owner_id, p_year, p_class_id, p_subject, p_assessment_id, p_title, p_scores)`
+  lưu điểm cho danh sách học sinh hiện tại của lớp đã được phân công.
+
+Chế độ demo chỉ lưu điểm trong trình duyệt hiện tại; dữ liệu demo không gửi lên
+Supabase và không đại diện cho hồ sơ học sinh thật.
