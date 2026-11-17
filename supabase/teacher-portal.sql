@@ -222,3 +222,167 @@ comment on table public.school_teacher_access is 'Explicit school-owner grants t
 comment on function public.get_teacher_portal(uuid, text) is 'Read-only, server-filtered teacher data. Never returns the complete school snapshot or student CCCD.';
 notify pgrst, 'reload schema';
 commit;
+\n
+
+-- Teacher gradebooks are stored separately from school snapshots so scores
+-- survive edits and transitions between academic years.
+begin;
+create table if not exists public.school_teacher_gradebooks (
+  owner_id uuid not null references public.school_workspaces(user_id) on delete cascade,
+  teacher_id uuid not null references auth.users(id) on delete cascade,
+  school_year text not null check (pg_catalog.length(school_year) between 1 and 20),
+  class_id text not null check (pg_catalog.length(class_id) between 1 and 120),
+  subject text not null check (pg_catalog.length(subject) between 1 and 120),
+  assessment_id uuid not null,
+  assessment_name text not null check (pg_catalog.length(pg_catalog.btrim(assessment_name)) between 1 and 100),
+  scores jsonb not null default '{}'::jsonb check (pg_catalog.jsonb_typeof(scores) = 'object'),
+  created_at timestamptz not null default pg_catalog.clock_timestamp(),
+  updated_at timestamptz not null default pg_catalog.clock_timestamp(),
+  primary key (owner_id, teacher_id, school_year, class_id, subject, assessment_id)
+);
+alter table public.school_teacher_gradebooks owner to postgres;
+alter table public.school_teacher_gradebooks enable row level security;
+revoke all on table public.school_teacher_gradebooks from public, anon, authenticated;
+revoke all (owner_id, teacher_id, school_year, class_id, subject, assessment_id, assessment_name, scores, created_at, updated_at)
+  on table public.school_teacher_gradebooks from public, anon, authenticated;
+
+create or replace function public.list_teacher_gradebooks(
+  p_owner_id uuid, p_year text, p_class_id text, p_subject text
+)
+returns jsonb language plpgsql security definer set search_path = ''
+as $function$
+declare
+  v_user uuid := auth.uid();
+  v_key text;
+  v_payload jsonb;
+  v_teacher jsonb;
+  v_record jsonb;
+begin
+  if v_user is null then
+    raise exception using errcode = '42501', message = 'authentication_required';
+  end if;
+  select a.teacher_key into v_key from public.school_teacher_access a
+    where a.owner_id = p_owner_id and a.teacher_id = v_user;
+  if not found then
+    raise exception using errcode = '42501', message = 'teacher_access_denied';
+  end if;
+  select w.payload into v_payload from public.school_workspaces w where w.user_id = p_owner_id;
+  if not found or not coalesce((v_payload -> 'years') ? p_year, false) then
+    raise exception using errcode = '42501', message = 'teacher_access_denied';
+  end if;
+  select person into v_teacher from pg_catalog.jsonb_array_elements(coalesce(v_payload -> 'teachers', '[]'::jsonb)) person
+    where public.school_teacher_key(person ->> 'name') = v_key limit 1;
+  if v_teacher is null or coalesce(v_teacher ->> 'status', 'Đang giảng dạy') <> 'Đang giảng dạy' then
+    raise exception using errcode = '42501', message = 'teacher_access_denied';
+  end if;
+  v_record := v_payload -> 'years' -> p_year;
+  if not exists(select 1 from pg_catalog.jsonb_array_elements(coalesce(v_record -> 'classes', '[]'::jsonb)) c
+      where c ->> 'id' = p_class_id and coalesce(c ->> 'status', '') <> 'Đã tốt nghiệp')
+    or not exists(select 1 from pg_catalog.jsonb_array_elements(coalesce(v_record -> 'assignments', '[]'::jsonb)) a
+      where a ->> 'classId' = p_class_id
+        and public.school_teacher_key(a ->> 'name') = v_key
+        and pg_catalog.btrim(a ->> 'subject') = p_subject) then
+    raise exception using errcode = '42501', message = 'teacher_assignment_denied';
+  end if;
+  return coalesce((
+    select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+      'id', g.assessment_id::text, 'title', g.assessment_name,
+      'scores', g.scores, 'updatedAt', g.updated_at
+    ) order by g.updated_at desc)
+    from public.school_teacher_gradebooks g
+    where g.owner_id = p_owner_id and g.teacher_id = v_user and g.school_year = p_year
+      and g.class_id = p_class_id and g.subject = p_subject
+  ), '[]'::jsonb);
+end;
+$function$;
+
+create or replace function public.save_teacher_gradebook(
+  p_owner_id uuid, p_year text, p_class_id text, p_subject text,
+  p_assessment_id uuid, p_title text, p_scores jsonb
+)
+returns jsonb language plpgsql security definer set search_path = ''
+as $function$
+declare
+  v_user uuid := auth.uid();
+  v_key text;
+  v_payload jsonb;
+  v_teacher jsonb;
+  v_record jsonb;
+  v_entry record;
+  v_score numeric;
+  v_title text := pg_catalog.btrim(coalesce(p_title, ''));
+  v_saved public.school_teacher_gradebooks%rowtype;
+begin
+  if v_user is null then
+    raise exception using errcode = '42501', message = 'authentication_required';
+  end if;
+  if p_assessment_id is null or pg_catalog.length(v_title) not between 1 and 100
+      or p_scores is null or pg_catalog.jsonb_typeof(p_scores) <> 'object'
+      or pg_catalog.jsonb_object_length(p_scores) > 1000 then
+    raise exception using errcode = '22023', message = 'invalid_gradebook';
+  end if;
+  select a.teacher_key into v_key from public.school_teacher_access a
+    where a.owner_id = p_owner_id and a.teacher_id = v_user;
+  if not found then
+    raise exception using errcode = '42501', message = 'teacher_access_denied';
+  end if;
+  select w.payload into v_payload from public.school_workspaces w where w.user_id = p_owner_id;
+  if not found or not coalesce((v_payload -> 'years') ? p_year, false) then
+    raise exception using errcode = '42501', message = 'teacher_access_denied';
+  end if;
+  select person into v_teacher from pg_catalog.jsonb_array_elements(coalesce(v_payload -> 'teachers', '[]'::jsonb)) person
+    where public.school_teacher_key(person ->> 'name') = v_key limit 1;
+  if v_teacher is null or coalesce(v_teacher ->> 'status', 'Đang giảng dạy') <> 'Đang giảng dạy' then
+    raise exception using errcode = '42501', message = 'teacher_access_denied';
+  end if;
+  v_record := v_payload -> 'years' -> p_year;
+  if not exists(select 1 from pg_catalog.jsonb_array_elements(coalesce(v_record -> 'classes', '[]'::jsonb)) c
+      where c ->> 'id' = p_class_id and coalesce(c ->> 'status', '') <> 'Đã tốt nghiệp')
+    or not exists(select 1 from pg_catalog.jsonb_array_elements(coalesce(v_record -> 'assignments', '[]'::jsonb)) a
+      where a ->> 'classId' = p_class_id
+        and public.school_teacher_key(a ->> 'name') = v_key
+        and pg_catalog.btrim(a ->> 'subject') = p_subject) then
+    raise exception using errcode = '42501', message = 'teacher_assignment_denied';
+  end if;
+  for v_entry in select key, value from pg_catalog.jsonb_each(p_scores) loop
+    if not exists(select 1 from pg_catalog.jsonb_array_elements(coalesce(v_record -> 'studentProfiles', '[]'::jsonb)) s
+        where s ->> 'id' = v_entry.key and s ->> 'classId' = p_class_id) then
+      raise exception using errcode = '22023', message = 'student_not_in_assigned_class';
+    end if;
+    if pg_catalog.jsonb_typeof(v_entry.value) <> 'null' then
+      if pg_catalog.jsonb_typeof(v_entry.value) <> 'number' then
+        raise exception using errcode = '22023', message = 'invalid_grade_score';
+      end if;
+      v_score := (v_entry.value #>> '{}')::numeric;
+      if v_score < 0 or v_score > 10 or v_score * 10 <> pg_catalog.trunc(v_score * 10) then
+        raise exception using errcode = '22023', message = 'invalid_grade_score';
+      end if;
+    end if;
+  end loop;
+  insert into public.school_teacher_gradebooks(
+    owner_id, teacher_id, school_year, class_id, subject, assessment_id, assessment_name, scores, updated_at
+  ) values (
+    p_owner_id, v_user, p_year, p_class_id, p_subject, p_assessment_id, v_title, p_scores, pg_catalog.clock_timestamp()
+  )
+  on conflict (owner_id, teacher_id, school_year, class_id, subject, assessment_id)
+  do update set assessment_name = excluded.assessment_name, scores = excluded.scores,
+    updated_at = pg_catalog.clock_timestamp()
+  returning * into v_saved;
+  return pg_catalog.jsonb_build_object(
+    'id', v_saved.assessment_id::text, 'title', v_saved.assessment_name,
+    'scores', v_saved.scores, 'updatedAt', v_saved.updated_at
+  );
+end;
+$function$;
+
+alter function public.list_teacher_gradebooks(uuid, text, text, text) owner to postgres;
+alter function public.save_teacher_gradebook(uuid, text, text, text, uuid, text, jsonb) owner to postgres;
+revoke all on function public.list_teacher_gradebooks(uuid, text, text, text) from public, anon, authenticated;
+revoke all on function public.save_teacher_gradebook(uuid, text, text, text, uuid, text, jsonb) from public, anon, authenticated;
+grant execute on function public.list_teacher_gradebooks(uuid, text, text, text) to authenticated;
+grant execute on function public.save_teacher_gradebook(uuid, text, text, text, uuid, text, jsonb) to authenticated;
+comment on table public.school_teacher_gradebooks is 'Teacher-entered scores scoped to the assigned teacher, class, subject and academic year. No direct client access.';
+comment on function public.list_teacher_gradebooks(uuid, text, text, text) is 'Lists a teacher account''s gradebooks only for an active class and current subject assignment.';
+comment on function public.save_teacher_gradebook(uuid, text, text, text, uuid, text, jsonb) is 'Saves scores only for the caller''s assigned subject and the students currently in that class.';
+notify pgrst, 'reload schema';
+commit;
