@@ -10,8 +10,9 @@
   const initials = value => String(value || '').trim().split(/\s+/).filter(Boolean).slice(-2).map(part => part[0]).join('').toLocaleUpperCase('vi') || 'GV';
   const dayLabels = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
   let client = null, user = null, schools = [], selectedSchool = '', portal = null;
-  let generation = 0, operation = 0, view = 'home', loading = false, failure = '';
+  let generation = 0, operation = 0, view = 'schedule', loading = false, failure = '';
   let poll = null, rosterClass = '', rosterSearch = '', rosterPreviousFocus = null;
+  let rosterSubject = '', rosterAssessmentId = '', rosterAssessmentTitle = '', rosterScores = {}, gradebooks = [], gradebookLoading = false, gradebookSaving = false, gradebookMessage = '', gradebookMessageError = false;
   let demoMode = false;
   const DEMO_STORAGE_KEY = 'thpt-teacher-demo-v1';
   const requests = new Set();
@@ -40,13 +41,14 @@
     const demo = {
       school:{name:'THPT Lê Quý Đôn',avatar:null}, teacher,
       years:['2026-2027','2025-2026','2024-2025'], current:'2026-2027',
-      classes, schedule, studentProfiles:students,
+      classes, schedule, studentProfiles:students, gradebooks:[],
       assignments:[...new Map(schedule.map(item => [item.classId + '|' + item.subject, {classId:item.classId,subject:item.subject,teacher:teacher.name,isHomeroom:false}])).values()]
     };
     try {
       const saved = JSON.parse(localStorage.getItem(DEMO_STORAGE_KEY) || 'null');
       if (saved && saved.teacher && typeof saved.teacher === 'object') Object.assign(demo.teacher, saved.teacher);
       if (Array.isArray(saved?.schedule)) demo.schedule = saved.schedule.filter(item => item && demo.classes.some(classItem => classItem.id === item.classId) && Number(item.day) >= 1 && Number(item.day) <= 6 && Number(item.period) >= 1 && Number(item.period) <= 15 && typeof item.subject === 'string').map(item => ({classId:item.classId,day:Number(item.day),period:Number(item.period),subject:item.subject,room:String(item.room || '')}));
+      if (Array.isArray(saved?.gradebooks)) demo.gradebooks = saved.gradebooks.filter(item => item && demo.classes.some(classItem => classItem.id === item.classId) && typeof item.subject === 'string' && typeof item.title === 'string' && item.scores && typeof item.scores === 'object' && !Array.isArray(item.scores));
       if (demo.years.includes(saved?.current)) demo.current = saved.current;
     } catch (error) {}
     demo.assignments = [...new Map(demo.schedule.map(item => [item.classId + '|' + item.subject, {classId:item.classId,subject:item.subject,teacher:demo.teacher.name,isHomeroom:false}])).values()];
@@ -55,7 +57,7 @@
   function saveDemoData() {
     if (!demoMode || !portal) return false;
     try {
-      localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify({teacher:portal.teacher,schedule:portal.schedule,current:portal.current}));
+      localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify({teacher:portal.teacher,schedule:portal.schedule,current:portal.current,gradebooks:portal.gradebooks || []}));
       return true;
     } catch (error) { return false; }
   }
@@ -97,7 +99,7 @@
   }
   function normalizePortal(value) {
     if (!value || !value.school || !value.teacher || !Array.isArray(value.years) || !Array.isArray(value.classes) || !Array.isArray(value.schedule) || !Array.isArray(value.assignments)) throw new Error('invalid_portal');
-    return {...value, studentProfiles: Array.isArray(value.studentProfiles) ? value.studentProfiles : []};
+    return {...value, studentProfiles: Array.isArray(value.studentProfiles) ? value.studentProfiles : [], gradebooks: Array.isArray(value.gradebooks) ? value.gradebooks : []};
   }
   function setLoading(value) {
     loading = value;
@@ -137,7 +139,7 @@
     poll = setInterval(() => { if (!document.hidden && user && !loading) refresh(); }, 30000);
   }
   async function refresh({owner = selectedSchool, year = portal?.current || null} = {}) {
-    if (demoMode) { render(); setStatus('BẢN DEMO · dữ liệu mẫu, chỉ lưu trên thiết bị này.'); return; }
+    if (demoMode) { setStatus('BẢN DEMO · dữ liệu mẫu, chỉ lưu trên thiết bị này.'); return; }
     if (!user || !client || loading || $('#appRoot').hidden) return;
     const at = generation, sequence = ++operation;
     cancelRequests();
@@ -178,7 +180,7 @@
     return '<div class="stat-card"><div class="stat-top"><span class="stat-label">' + esc(label) + '</span><span class="stat-icon ' + tone + '">' + icon(symbol) + '</span></div><div class="stat-value">' + esc(value) + '</div><div class="stat-foot">' + esc(detail) + '</div></div>';
   }
   function render() {
-    const labels = {home:'Trang chủ',schedule:'Lịch dạy',classes:'Lớp phụ trách',profile:'Hồ sơ của tôi'};
+    const labels = {schedule:'Lịch dạy',classes:'Lớp phụ trách',profile:'Hồ sơ của tôi'};
     $('#teacherBreadcrumb').textContent = labels[view];
     document.querySelectorAll('[data-teacher-view]').forEach(button => {
       button.classList.toggle('active', button.dataset.teacherView === view);
@@ -188,16 +190,12 @@
       $('#teacherPage').innerHTML = failure ? empty('Chưa tải được dữ liệu', failure, '<button class="btn btn-primary" type="button" data-teacher-retry>Thử lại</button>') : empty('Tài khoản chưa được liên kết', 'Vui lòng liên hệ quản trị viên nhà trường để liên kết email đăng nhập với hồ sơ giáo viên. Sau khi được cấp quyền, bấm cập nhật để xem lịch dạy và lớp phụ trách.', '<button class="btn btn-primary" type="button" data-teacher-retry>' + icon('refresh') + ' Cập nhật</button>');
       return;
     }
-    if (view !== 'home') {
-      $('#teacherPage').innerHTML = view === 'schedule' ? renderSchedule() : view === 'classes' ? renderClasses() : renderProfile();
-      return;
-    }
     const profile = portal.teacher;
     const days = new Intl.DateTimeFormat('vi-VN', {weekday:'long',timeZone:'Asia/Ho_Chi_Minh'}).format(new Date());
     const date = new Intl.DateTimeFormat('vi-VN', {day:'2-digit',month:'long',year:'numeric',timeZone:'Asia/Ho_Chi_Minh'}).format(new Date());
     const hero = '<section class="hero"><div><div class="eyebrow">Không gian dành cho thầy cô</div><h1>Xin chào, ' + esc(profile.name) + '</h1><p>Cùng theo dõi lịch dạy và đồng hành cùng học sinh mỗi ngày.</p></div><div class="hero-date">' + esc(days) + '<strong>' + esc(date) + '</strong></div></section>';
     const stats = '<div class="stats">' + stat('Lớp phụ trách', portal.classes.length, 'Theo phân công trong năm học', 'book') + stat('Hồ sơ học sinh', portal.studentProfiles.length, 'Trong các lớp được phân công', 'users', 'blue') + stat('Tiết dạy mỗi tuần', portal.schedule.length, 'Theo thời khóa biểu hiện tại', 'clock') + stat('Lớp chủ nhiệm', portal.classes.filter(homeroom).length, 'Được nhà trường phân công', 'user', 'gold') + '</div>';
-    $('#teacherPage').innerHTML = '<div id="teacherHome">' + hero + stats + '</div>';
+    $('#teacherPage').innerHTML = hero + stats + (view === 'schedule' ? renderSchedule() : view === 'classes' ? renderClasses() : renderProfile());
   }
   function renderSchedule() {
     const head = '<div class="section-head"><div><h2>Thời khóa biểu của tôi</h2><p>Lịch của tất cả lớp được phân công trong năm học ' + esc(yearLabel(portal.current)) + '.</p></div></div>';
@@ -265,7 +263,7 @@
     if (!demoMode) return;
     try { localStorage.removeItem(DEMO_STORAGE_KEY); } catch (error) {}
     portal = makeDemoData();
-    view = 'home';
+    view = 'schedule';
     updateSelectors(); setBrand(); render(); closeRoster();
     setStatus('Đã khôi phục dữ liệu demo mẫu.');
   }
@@ -273,23 +271,139 @@
     const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ''));
     return match ? match[3] + '/' + match[2] + '/' + match[1] : 'Chưa cập nhật';
   }
+  function newGradebookId() {
+    if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, character => {
+      const value = Math.random() * 16 | 0;
+      return (character === 'x' ? value : (value & 3 | 8)).toString(16);
+    });
+  }
+  function gradebookError(error) {
+    const code = String(error?.code || '');
+    if (code === 'PGRST202' || code === '42883') return 'Nhà trường cần cập nhật supabase/teacher-portal.sql để bật sổ điểm.';
+    if (code === '42501' || /teacher_access|not_authorized|access_denied/i.test(error?.message || '')) return 'Tài khoản này chưa được phân công dạy môn học của lớp.';
+    return 'Chưa tải hoặc lưu được sổ điểm. Kiểm tra kết nối rồi thử lại.';
+  }
+  function renderGradebookControls() {
+    const subjectSelect = $('#teacherGradeSubject');
+    if (!subjectSelect) return;
+    const subjects = classSubjects(rosterClass);
+    subjectSelect.innerHTML = subjects.length ? subjects.map(subject => '<option value="' + esc(subject) + '">' + esc(subject) + '</option>').join('') : '<option value="">Chưa có môn được phân công</option>';
+    subjectSelect.value = rosterSubject;
+    const assessmentSelect = $('#teacherGradeAssessment');
+    assessmentSelect.innerHTML = '<option value="">＋ Tạo bài đánh giá mới</option>' + gradebooks.map(book => '<option value="' + esc(book.id) + '">' + esc(book.title) + '</option>').join('');
+    assessmentSelect.value = rosterAssessmentId;
+    $('#teacherGradeTitle').value = rosterAssessmentTitle;
+    $('#teacherGradeTitleField').hidden = !!rosterAssessmentId;
+    subjectSelect.disabled = !subjects.length || gradebookSaving;
+    assessmentSelect.disabled = !subjects.length || gradebookLoading || gradebookSaving;
+    $('#teacherGradeTitle').disabled = gradebookSaving;
+    $('#teacherGradeSave').disabled = !subjects.length || gradebookLoading || gradebookSaving;
+    $('#teacherGradeSave').textContent = gradebookSaving ? 'Đang lưu…' : 'Lưu điểm';
+    const message = $('#teacherGradeMessage');
+    message.textContent = gradebookLoading ? 'Đang tải bài đánh giá…' : gradebookMessage;
+    message.dataset.error = String(gradebookMessageError);
+  }
+  async function loadGradebooks() {
+    if (!rosterClass || !rosterSubject) return;
+    const classId = rosterClass, subject = rosterSubject;
+    gradebookLoading = true; gradebookMessage = ''; gradebookMessageError = false;
+    renderGradebookControls();
+    if (demoMode) {
+      gradebooks = (portal?.gradebooks || []).filter(book => book.classId === classId && book.subject === subject);
+      gradebookLoading = false;
+      const first = gradebooks[0]; rosterAssessmentId = first?.id || ''; rosterAssessmentTitle = first?.title || ''; rosterScores = {...(first?.scores || {})};
+      renderGradebookControls(); renderRosterRows();
+      return;
+    }
+    try {
+      const at = generation, sequence = operation;
+      const rows = await rpc('list_teacher_gradebooks', {p_owner_id:selectedSchool,p_year:portal.current,p_class_id:classId,p_subject:subject}, at, sequence);
+      if (!stillActive(at, sequence) || rosterClass !== classId || rosterSubject !== subject) return;
+      if (!Array.isArray(rows)) throw new Error('invalid_gradebooks');
+      gradebooks = rows.filter(book => book && typeof book.id === 'string' && typeof book.title === 'string' && book.scores && typeof book.scores === 'object');
+      const first = gradebooks[0]; rosterAssessmentId = first?.id || ''; rosterAssessmentTitle = first?.title || ''; rosterScores = {...(first?.scores || {})};
+    } catch (error) {
+      if (rosterClass !== classId || rosterSubject !== subject) return;
+      gradebooks = []; rosterAssessmentId = ''; rosterAssessmentTitle = ''; rosterScores = {};
+      gradebookMessage = gradebookError(error); gradebookMessageError = true;
+    } finally {
+      if (rosterClass === classId && rosterSubject === subject) {
+        gradebookLoading = false; renderGradebookControls(); renderRosterRows();
+      }
+    }
+  }
+  function selectGradeAssessment(id) {
+    rosterAssessmentId = id;
+    const selected = gradebooks.find(book => book.id === id);
+    rosterAssessmentTitle = selected?.title || '';
+    rosterScores = {...(selected?.scores || {})};
+    gradebookMessage = ''; gradebookMessageError = false;
+    renderGradebookControls(); renderRosterRows();
+  }
+  async function saveGradebook() {
+    if (!rosterClass || !rosterSubject || gradebookSaving || gradebookLoading) return;
+    const title = String(rosterAssessmentId ? gradebooks.find(book => book.id === rosterAssessmentId)?.title || '' : rosterAssessmentTitle).trim();
+    if (!title) {
+      gradebookMessage = 'Nhập tên bài đánh giá trước khi lưu.'; gradebookMessageError = true; renderGradebookControls(); $('#teacherGradeTitle').focus(); return;
+    }
+    const scores = {};
+    for (const student of rosterFor(rosterClass)) {
+      const raw = rosterScores[student.id];
+      if (raw === undefined || raw === null || String(raw).trim() === '') { scores[student.id] = null; continue; }
+      const score = Number(String(raw).trim().replace(',', '.'));
+      if (!Number.isFinite(score) || score < 0 || score > 10 || !Number.isInteger(score * 10)) {
+        gradebookMessage = 'Điểm phải từ 0 đến 10, tối đa một chữ số thập phân.'; gradebookMessageError = true; renderGradebookControls();
+        $('[data-teacher-score="' + CSS.escape(student.id) + '"]')?.focus(); return;
+      }
+      scores[student.id] = score;
+    }
+    const assessmentId = rosterAssessmentId || newGradebookId();
+    gradebookSaving = true; gradebookMessage = ''; gradebookMessageError = false; renderGradebookControls();
+    try {
+      const book = {id:assessmentId,classId:rosterClass,subject:rosterSubject,title,scores};
+      if (demoMode) {
+        portal.gradebooks = Array.isArray(portal.gradebooks) ? portal.gradebooks : [];
+        const index = portal.gradebooks.findIndex(item => item.id === assessmentId);
+        if (index < 0) portal.gradebooks.push(book); else portal.gradebooks[index] = book;
+        if (!saveDemoData()) throw new Error('local_storage_unavailable');
+      } else {
+        const at = generation, sequence = operation;
+        await rpc('save_teacher_gradebook', {p_owner_id:selectedSchool,p_year:portal.current,p_class_id:rosterClass,p_subject:rosterSubject,p_assessment_id:assessmentId,p_title:title,p_scores:scores}, at, sequence);
+        if (!stillActive(at, sequence)) return;
+      }
+      const index = gradebooks.findIndex(item => item.id === assessmentId);
+      if (index < 0) gradebooks.unshift(book); else gradebooks[index] = book;
+      rosterAssessmentId = assessmentId; rosterAssessmentTitle = title; rosterScores = {...scores};
+      gradebookMessage = demoMode ? 'Đã lưu điểm trong bản demo trên thiết bị này.' : 'Đã lưu điểm.';
+      gradebookMessageError = false;
+    } catch (error) {
+      gradebookMessage = demoMode ? 'Trình duyệt không cho phép lưu dữ liệu demo.' : gradebookError(error);
+      gradebookMessageError = true;
+    } finally {
+      gradebookSaving = false; renderGradebookControls(); renderRosterRows();
+    }
+  }
   function openRoster(id) {
     const item = classById(id); if (!item) return;
     rosterPreviousFocus = document.activeElement; rosterClass = id; rosterSearch = '';
-    $('#teacherRosterRoot').innerHTML = '<div class="roster-backdrop"><section id="teacherRosterDialog" class="roster-dialog" role="dialog" aria-modal="true" aria-labelledby="teacherRosterTitle"><div class="roster-head"><div><h2 id="teacherRosterTitle">Học sinh lớp ' + esc(item.name) + '</h2><p>' + esc(yearLabel(portal.current)) + ' · ' + (homeroom(item) ? 'Lớp chủ nhiệm' : 'Lớp giảng dạy') + '</p></div><button class="icon-button" id="teacherRosterClose" type="button" aria-label="Đóng danh sách học sinh">' + icon('close') + '</button></div><div class="roster-toolbar"><label class="sr-only" for="teacherStudentSearch">Tìm học sinh theo họ tên</label><input id="teacherStudentSearch" type="search" placeholder="Tìm học sinh theo họ tên…" autocomplete="off"><span id="teacherRosterCount"></span></div><div class="roster-scroll"><table class="roster-table"><thead><tr><th scope="col">STT</th><th scope="col">Họ và tên</th><th scope="col">Ngày sinh</th></tr></thead><tbody id="teacherRosterRows"></tbody></table></div><div class="roster-footer">Danh sách được nhà trường cập nhật. Vui lòng liên hệ quản trị viên khi cần điều chỉnh.</div></section></div>';
+    const subjects = classSubjects(id);
+    rosterSubject = subjects[0] || ''; rosterAssessmentId = ''; rosterAssessmentTitle = ''; rosterScores = {}; gradebooks = []; gradebookLoading = false; gradebookSaving = false; gradebookMessage = ''; gradebookMessageError = false;
+    $('#teacherRosterRoot').innerHTML = '<div class="roster-backdrop"><section id="teacherRosterDialog" class="roster-dialog" role="dialog" aria-modal="true" aria-labelledby="teacherRosterTitle"><div class="roster-head"><div><h2 id="teacherRosterTitle">Sổ điểm lớp ' + esc(item.name) + '</h2><p>' + esc(yearLabel(portal.current)) + ' · ' + (homeroom(item) ? 'Lớp chủ nhiệm' : 'Lớp giảng dạy') + '</p></div><button class="icon-button" id="teacherRosterClose" type="button" aria-label="Đóng sổ điểm">' + icon('close') + '</button></div><div class="grade-controls"><label>Học phần / môn học<select id="teacherGradeSubject"></select></label><label>Bài đánh giá<select id="teacherGradeAssessment"><option value="">＋ Tạo bài đánh giá mới</option></select></label><label id="teacherGradeTitleField">Tên bài đánh giá<input id="teacherGradeTitle" type="text" maxlength="100" placeholder="Ví dụ: Kiểm tra giữa kỳ"></label><div id="teacherGradeMessage" class="grade-message" role="status" aria-live="polite"></div></div><div class="roster-toolbar"><label class="sr-only" for="teacherStudentSearch">Tìm học sinh theo họ tên</label><input id="teacherStudentSearch" type="search" placeholder="Tìm học sinh theo họ tên…" autocomplete="off"><span id="teacherRosterCount"></span></div><div class="roster-scroll"><table class="roster-table"><thead><tr><th scope="col">STT</th><th scope="col">Họ và tên</th><th scope="col">Ngày sinh</th><th scope="col">Điểm (0–10)</th></tr></thead><tbody id="teacherRosterRows"></tbody></table></div><div class="roster-footer"><span>Nhập điểm từ 0 đến 10. Bài đánh giá được lưu riêng theo lớp, môn và năm học.</span><button class="btn btn-primary" id="teacherGradeSave" type="button">Lưu điểm</button></div></section></div>';
     $('#appRoot').setAttribute('inert', '');
-    renderRosterRows(); $('#teacherStudentSearch').focus();
+    renderGradebookControls(); renderRosterRows(); $('#teacherStudentSearch').focus();
+    if (rosterSubject) loadGradebooks();
   }
   function renderRosterRows() {
     if (!rosterClass || !$('#teacherRosterRows')) return;
     const all = rosterFor(rosterClass).slice().sort((a,b) => String(a.fullName).localeCompare(String(b.fullName), 'vi'));
     const students = all.filter(student => fold(student.fullName).includes(fold(rosterSearch)));
     $('#teacherRosterCount').textContent = students.length + ' / ' + all.length + ' học sinh';
-    $('#teacherRosterRows').innerHTML = students.length ? students.map((student,index) => '<tr><td>' + (index + 1) + '</td><td>' + esc(student.fullName) + (student.isSample === true ? ' <span class="badge gold">Mẫu</span>' : '') + '</td><td>' + esc(birthDate(student.birthDate)) + '</td></tr>').join('') : '<tr><td colspan="3"><div class="empty">' + esc(rosterSearch ? 'Không tìm thấy học sinh phù hợp.' : 'Lớp chưa có hồ sơ học sinh.') + '</div></td></tr>';
+    $('#teacherRosterRows').innerHTML = students.length ? students.map((student,index) => '<tr><td>' + (index + 1) + '</td><td>' + esc(student.fullName) + (student.isSample === true ? ' <span class="badge gold">Mẫu</span>' : '') + '</td><td>' + esc(birthDate(student.birthDate)) + '</td><td><input class="grade-score" type="number" min="0" max="10" step="0.1" inputmode="decimal" data-teacher-score="' + esc(student.id) + '" aria-label="Điểm của ' + esc(student.fullName) + '" value="' + esc(rosterScores[student.id] ?? '') + '"' + (!rosterSubject || gradebookLoading || gradebookSaving ? ' disabled' : '') + '></td></tr>').join('') : '<tr><td colspan="4"><div class="empty">' + esc(rosterSearch ? 'Không tìm thấy học sinh phù hợp.' : 'Lớp chưa có hồ sơ học sinh.') + '</div></td></tr>';
   }
   function closeRoster() {
     const previous = rosterPreviousFocus;
-    rosterClass = ''; rosterSearch = ''; rosterPreviousFocus = null;
+    rosterClass = ''; rosterSearch = ''; rosterPreviousFocus = null; rosterSubject = ''; rosterAssessmentId = ''; rosterAssessmentTitle = ''; rosterScores = {}; gradebooks = []; gradebookLoading = false; gradebookSaving = false; gradebookMessage = ''; gradebookMessageError = false;
     $('#teacherRosterRoot').replaceChildren();
     if (!$('#appRoot').hidden) $('#appRoot').removeAttribute('inert');
     if (previous?.isConnected && !$('#appRoot').hidden) previous.focus({preventScroll:true});
@@ -305,7 +419,7 @@
       cancelRequests(); ++generation; ++operation;
       demoMode = true; user = {id:'demo-user',email:'giaovien.demo@example.test'}; client = null;
       schools = [{owner_id:'demo-school',school:{name:'THPT Lê Quý Đôn'}}]; selectedSchool = 'demo-school';
-      portal = makeDemoData(); failure = ''; view = 'home'; loading = false;
+      portal = makeDemoData(); failure = ''; view = 'schedule'; loading = false;
       if (poll) clearInterval(poll); poll = null;
       closeRoster(); setMenu(false);
       const screen = $('#authScreen'), app = $('#appRoot');
@@ -316,7 +430,7 @@
     },
     async prepare(nextUser, nextClient) {
       cancelRequests(); ++generation; ++operation;
-      demoMode = false; user = nextUser; client = nextClient; schools = []; selectedSchool = ''; portal = null; failure = ''; view = 'home';
+      demoMode = false; user = nextUser; client = nextClient; schools = []; selectedSchool = ''; portal = null; failure = ''; view = 'schedule';
       const at = generation, sequence = operation;
       try {
         const rows = await rpc('list_teacher_schools', {}, at, sequence);
@@ -366,10 +480,26 @@
     if (navigation && user) { view = navigation.dataset.teacherView; setMenu(false); render(); }
     const roster = event.target.closest('[data-teacher-roster]'); if (roster) openRoster(roster.dataset.teacherRoster);
     if (event.target.closest('#teacherRosterClose') || event.target.classList.contains('roster-backdrop')) closeRoster();
+    if (event.target.closest('#teacherGradeSave')) saveGradebook();
     if (event.target.closest('[data-teacher-retry]')) refresh();
   });
   document.addEventListener('submit', event => { if (event.target.id === 'teacherDemoForm') { event.preventDefault(); saveDemoEditor(event.target); } });
-  document.addEventListener('input', event => { if (event.target.id === 'teacherStudentSearch') { rosterSearch = event.target.value; renderRosterRows(); } });
+  document.addEventListener('change', event => {
+    if (event.target.id === 'teacherGradeSubject') {
+      rosterSubject = event.target.value; rosterAssessmentId = ''; rosterAssessmentTitle = ''; rosterScores = {}; gradebooks = [];
+      gradebookMessage = ''; gradebookMessageError = false; renderGradebookControls(); renderRosterRows();
+      if (rosterSubject) loadGradebooks();
+    }
+    if (event.target.id === 'teacherGradeAssessment') selectGradeAssessment(event.target.value);
+  });
+  document.addEventListener('input', event => {
+    if (event.target.id === 'teacherStudentSearch') { rosterSearch = event.target.value; renderRosterRows(); }
+    if (event.target.id === 'teacherGradeTitle') rosterAssessmentTitle = event.target.value;
+    if (event.target.matches('[data-teacher-score]')) {
+      rosterScores[event.target.dataset.teacherScore] = event.target.value;
+      if (gradebookMessage && !gradebookMessageError) { gradebookMessage = ''; renderGradebookControls(); }
+    }
+  });
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape') { closeRoster(); setMenu(false); }
     const dialog = $('#teacherRosterDialog');
@@ -381,3 +511,4 @@
   });
   window.addEventListener('focus', () => { if (user && !loading && !document.hidden) refresh(); });
 })();
+
