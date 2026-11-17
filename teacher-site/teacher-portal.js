@@ -10,7 +10,7 @@
   const initials = value => String(value || '').trim().split(/\s+/).filter(Boolean).slice(-2).map(part => part[0]).join('').toLocaleUpperCase('vi') || 'GV';
   const dayLabels = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
   let client = null, user = null, schools = [], selectedSchool = '', portal = null;
-  let generation = 0, operation = 0, view = 'schedule', loading = false, failure = '';
+  let generation = 0, operation = 0, view = 'home', loading = false, failure = '';
   let poll = null, rosterClass = '', rosterSearch = '', rosterPreviousFocus = null;
   let rosterSubject = '', rosterAssessmentId = '', rosterAssessmentTitle = '', rosterScores = {}, gradebooks = [], gradebookLoading = false, gradebookSaving = false, gradebookMessage = '', gradebookMessageError = false;
   let demoMode = false;
@@ -139,7 +139,7 @@
     poll = setInterval(() => { if (!document.hidden && user && !loading) refresh(); }, 30000);
   }
   async function refresh({owner = selectedSchool, year = portal?.current || null} = {}) {
-    if (demoMode) { setStatus('BẢN DEMO · dữ liệu mẫu, chỉ lưu trên thiết bị này.'); return; }
+    if (demoMode) { render(); setStatus('BẢN DEMO · dữ liệu mẫu, chỉ lưu trên thiết bị này.'); return; }
     if (!user || !client || loading || $('#appRoot').hidden) return;
     const at = generation, sequence = ++operation;
     cancelRequests();
@@ -180,7 +180,7 @@
     return '<div class="stat-card"><div class="stat-top"><span class="stat-label">' + esc(label) + '</span><span class="stat-icon ' + tone + '">' + icon(symbol) + '</span></div><div class="stat-value">' + esc(value) + '</div><div class="stat-foot">' + esc(detail) + '</div></div>';
   }
   function render() {
-    const labels = {schedule:'Lịch dạy',classes:'Lớp phụ trách',profile:'Hồ sơ của tôi'};
+    const labels = {home:'Trang chủ',schedule:'Lịch dạy',classes:'Lớp phụ trách',profile:'Hồ sơ của tôi'};
     $('#teacherBreadcrumb').textContent = labels[view];
     document.querySelectorAll('[data-teacher-view]').forEach(button => {
       button.classList.toggle('active', button.dataset.teacherView === view);
@@ -190,12 +190,16 @@
       $('#teacherPage').innerHTML = failure ? empty('Chưa tải được dữ liệu', failure, '<button class="btn btn-primary" type="button" data-teacher-retry>Thử lại</button>') : empty('Tài khoản chưa được liên kết', 'Vui lòng liên hệ quản trị viên nhà trường để liên kết email đăng nhập với hồ sơ giáo viên. Sau khi được cấp quyền, bấm cập nhật để xem lịch dạy và lớp phụ trách.', '<button class="btn btn-primary" type="button" data-teacher-retry>' + icon('refresh') + ' Cập nhật</button>');
       return;
     }
+    if (view !== 'home') {
+      $('#teacherPage').innerHTML = view === 'schedule' ? renderSchedule() : view === 'classes' ? renderClasses() : renderProfile();
+      return;
+    }
     const profile = portal.teacher;
     const days = new Intl.DateTimeFormat('vi-VN', {weekday:'long',timeZone:'Asia/Ho_Chi_Minh'}).format(new Date());
     const date = new Intl.DateTimeFormat('vi-VN', {day:'2-digit',month:'long',year:'numeric',timeZone:'Asia/Ho_Chi_Minh'}).format(new Date());
     const hero = '<section class="hero"><div><div class="eyebrow">Không gian dành cho thầy cô</div><h1>Xin chào, ' + esc(profile.name) + '</h1><p>Cùng theo dõi lịch dạy và đồng hành cùng học sinh mỗi ngày.</p></div><div class="hero-date">' + esc(days) + '<strong>' + esc(date) + '</strong></div></section>';
     const stats = '<div class="stats">' + stat('Lớp phụ trách', portal.classes.length, 'Theo phân công trong năm học', 'book') + stat('Hồ sơ học sinh', portal.studentProfiles.length, 'Trong các lớp được phân công', 'users', 'blue') + stat('Tiết dạy mỗi tuần', portal.schedule.length, 'Theo thời khóa biểu hiện tại', 'clock') + stat('Lớp chủ nhiệm', portal.classes.filter(homeroom).length, 'Được nhà trường phân công', 'user', 'gold') + '</div>';
-    $('#teacherPage').innerHTML = hero + stats + (view === 'schedule' ? renderSchedule() : view === 'classes' ? renderClasses() : renderProfile());
+    $('#teacherPage').innerHTML = '<div id="teacherHome">' + hero + stats + '</div>';
   }
   function renderSchedule() {
     const head = '<div class="section-head"><div><h2>Thời khóa biểu của tôi</h2><p>Lịch của tất cả lớp được phân công trong năm học ' + esc(yearLabel(portal.current)) + '.</p></div></div>';
@@ -263,7 +267,7 @@
     if (!demoMode) return;
     try { localStorage.removeItem(DEMO_STORAGE_KEY); } catch (error) {}
     portal = makeDemoData();
-    view = 'schedule';
+    view = 'home';
     updateSelectors(); setBrand(); render(); closeRoster();
     setStatus('Đã khôi phục dữ liệu demo mẫu.');
   }
@@ -310,7 +314,7 @@
     gradebookLoading = true; gradebookMessage = ''; gradebookMessageError = false;
     renderGradebookControls();
     if (demoMode) {
-      gradebooks = (portal?.gradebooks || []).filter(book => book.classId === classId && book.subject === subject);
+      gradebooks = (portal?.gradebooks || []).filter(book => book.classId === classId && book.subject === subject && (!book.year || book.year === portal.current));
       gradebookLoading = false;
       const first = gradebooks[0]; rosterAssessmentId = first?.id || ''; rosterAssessmentTitle = first?.title || ''; rosterScores = {...(first?.scores || {})};
       renderGradebookControls(); renderRosterRows();
@@ -361,7 +365,7 @@
     const assessmentId = rosterAssessmentId || newGradebookId();
     gradebookSaving = true; gradebookMessage = ''; gradebookMessageError = false; renderGradebookControls();
     try {
-      const book = {id:assessmentId,classId:rosterClass,subject:rosterSubject,title,scores};
+      const book = {id:assessmentId,classId:rosterClass,subject:rosterSubject,year:portal.current,title,scores};
       if (demoMode) {
         portal.gradebooks = Array.isArray(portal.gradebooks) ? portal.gradebooks : [];
         const index = portal.gradebooks.findIndex(item => item.id === assessmentId);
@@ -419,7 +423,7 @@
       cancelRequests(); ++generation; ++operation;
       demoMode = true; user = {id:'demo-user',email:'giaovien.demo@example.test'}; client = null;
       schools = [{owner_id:'demo-school',school:{name:'THPT Lê Quý Đôn'}}]; selectedSchool = 'demo-school';
-      portal = makeDemoData(); failure = ''; view = 'schedule'; loading = false;
+      portal = makeDemoData(); failure = ''; view = 'home'; loading = false;
       if (poll) clearInterval(poll); poll = null;
       closeRoster(); setMenu(false);
       const screen = $('#authScreen'), app = $('#appRoot');
@@ -430,7 +434,7 @@
     },
     async prepare(nextUser, nextClient) {
       cancelRequests(); ++generation; ++operation;
-      demoMode = false; user = nextUser; client = nextClient; schools = []; selectedSchool = ''; portal = null; failure = ''; view = 'schedule';
+      demoMode = false; user = nextUser; client = nextClient; schools = []; selectedSchool = ''; portal = null; failure = ''; view = 'home';
       const at = generation, sequence = operation;
       try {
         const rows = await rpc('list_teacher_schools', {}, at, sequence);
