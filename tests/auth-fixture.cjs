@@ -48,7 +48,7 @@ async function startTestServer() {
 }
 
 async function startTeacherTestServer() {
-  return startStaticTestServer(path.join(__dirname, '..', 'teacher-site'), ['index.html', 'auth.js', 'auth-config.js', 'teacher-portal.js', 'teacher-portal.css', 'teacher-homework.js', 'teacher-homework.css']);
+  return startStaticTestServer(path.join(__dirname, '..', 'teacher-site'), ['index.html', 'auth.js', 'auth-config.js', 'teacher-portal.js', 'teacher-portal.css', 'teacher-homework.js', 'teacher-homework.css', 'teacher-attachments.js']);
 }
 
 async function installAuthMocks(page, options = {}) {

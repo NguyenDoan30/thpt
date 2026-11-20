@@ -86,10 +86,14 @@ Sau `sync.sql` và `teacher-portal.sql`, chạy toàn bộ
 `supabase/teacher-homework.sql` trong Supabase → SQL Editor → New query → Run.
 Script có thể chạy lại và không thay thế dữ liệu trường, điểm hoặc bài tập đã
 lưu. Cập nhật mã website không tự tạo bảng hoặc hàm trên Supabase; tài khoản
-thật cần hoàn tất bước SQL này để lưu và tải bài tập.
+thật cần hoàn tất bước SQL này để lưu và tải bài tập. Nếu đã chạy phiên bản cũ,
+chạy lại toàn bộ script để thêm cột đính kèm, bucket riêng và chính sách Storage.
 
 Giáo viên mở **Giao bài tập**, chọn lớp và môn đang được phân công, nhập tên bài,
-nội dung và hạn nộp. Có thể thêm liên kết tài liệu HTTP/HTTPS. Danh sách hiển
+nội dung và hạn nộp. Có thể thêm liên kết tài liệu HTTP/HTTPS, chọn tệp hoặc ảnh
+đính kèm từ thiết bị. Mỗi bài nhận tối đa 5 tệp, mỗi tệp từ 1 byte đến 5 MiB;
+hỗ trợ PNG, JPG/JPEG, WebP, GIF, PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX và TXT.
+Ảnh có bản xem trước; tệp đã lưu có thể tải về khi đăng nhập. Danh sách hiển
 thị bài tập của chính giáo viên trong trường và năm học đang chọn. Khi chỉnh
 sửa, thời gian tạo ban đầu được giữ nguyên; mỗi bài có mã UUID riêng để gửi
 lại yêu cầu lưu mà không tạo bản sao. Phần sao chép tạo nội dung để giáo viên
@@ -97,14 +101,45 @@ gửi cho học sinh; tính năng này chưa có tài khoản học sinh hoặc 
 
 - `list_teacher_homework(p_owner_id, p_year)` trả về danh sách bài tập thuộc
   tài khoản giáo viên, giới hạn ở các lớp và môn còn được phân công.
-- `save_teacher_homework(p_owner_id, p_year, p_class_id, p_subject, p_homework_id, p_title, p_instructions, p_due_date, p_resource_url)`
+- `save_teacher_homework(p_owner_id, p_year, p_class_id, p_subject, p_homework_id, p_title, p_instructions, p_due_date, p_resource_url, p_attachments default null)`
   tạo hoặc cập nhật bài tập. `p_homework_id` là UUID do trình duyệt tạo để hỗ
   trợ gửi lại yêu cầu; có thể truyền `null` để máy chủ tạo UUID. Tên bài bắt
   buộc, tối đa 150 ký tự; nội dung bắt buộc, tối đa 10.000 ký tự; hạn nộp bắt
   buộc là ngày hợp lệ theo `YYYY-MM-DD`; liên kết không bắt buộc, tối đa 2.000
-  ký tự và chỉ nhận HTTP/HTTPS.
+  ký tự và chỉ nhận HTTP/HTTPS. `p_attachments` là mảng thông tin tệp đã tải lên,
+  mỗi phần tử gồm `id`, `name`, `type`, `size`, `path`. Truyền `[]` để bỏ mọi
+  đính kèm; bỏ tham số hoặc truyền SQL `null` giữ nguyên đính kèm khi chỉnh sửa
+  bằng phiên bản website cũ. Chỉ có một chữ ký RPC; bản SQL mới gỡ chữ ký chín
+  tham số cũ, thay bằng mười tham số với giá trị mặc định để tránh nhập nhằng.
 - Mỗi bản ghi trả về `id`, `classId`, `subject`, `title`, `instructions`,
-  `dueDate`, `resourceUrl`, `createdAt`, `updatedAt`.
+  `dueDate`, `resourceUrl`, `attachments`, `createdAt`, `updatedAt`.
+
+Tệp thật được tải vào bucket **private** `teacher-homework-files`, giới hạn
+5 MiB và các MIME tương ứng với định dạng nêu trên. Đường dẫn có dạng
+`teacherUserId/ownerId/homeworkId/attachmentId.extension`; các ID đều là UUID,
+phần mở rộng viết thường. Trình duyệt gửi MIME chuẩn khi tải lên (dùng phần mở
+rộng để xác định nếu thiết bị không cung cấp MIME). Mỗi lần thêm tệp dùng UUID
+mới và `upsert: false`; không ghi đè tệp đã lưu. RPC kiểm tra số lượng, tên,
+định dạng, dung lượng, đúng đường dẫn và đối chiếu đối tượng Storage thực tế
+thuộc tài khoản gọi trước khi lưu metadata. Tên gốc chỉ dùng để hiển thị/tải
+về, không được dùng làm đường dẫn. Tên tối đa 255 ký tự và không chứa ký tự
+điều khiển, dấu `/` hoặc `\`.
+
+Storage chỉ cấp quyền cho tài khoản giáo viên còn liên kết và hồ sơ đang
+giảng dạy, trong thư mục của chính tài khoản đó. Tệp đã gắn vào bài tập yêu
+cầu thêm quyền lớp/môn hiện tại của đúng năm học khi đọc hoặc tạo URL có thời
+hạn. Tệp nháp hoặc đã bỏ khỏi metadata vẫn thuộc riêng tác giả để có thể thử
+lại hoặc dọn tệp. Không có policy UPDATE; INSERT/SELECT/DELETE đều yêu cầu
+xác thực. Không tạo bucket công khai hoặc lưu URL công khai vào bản ghi.
+URL tải về có thời hạn ngắn, chỉ tạo lúc người dùng mở/tải tệp; URL đã cấp
+có thể dùng đến hết thời hạn, kể cả khi quyền vừa thay đổi.
+
+Trình duyệt tải tệp mới trước, sau đó lưu bài tập qua RPC. Chỉ khi RPC thành
+công mới bỏ các tệp cũ bị gỡ khỏi bài; lỗi tải lên/lưu không được báo thành
+công. Tệp mới của lần lưu bị lỗi có thể còn trong Storage để thử lại; tệp
+không còn được tham chiếu cần dọn bằng Storage API hoặc giao diện Storage,
+không xóa hàng trực tiếp trong `storage.objects`. Cấu hình theo tài liệu
+[Supabase Storage](https://supabase.com/docs/guides/storage/security/access-control).
 
 Bảng `school_teacher_homework` bật RLS và không cấp quyền đọc/ghi trực tiếp
 cho trình duyệt. Hai RPC chỉ cho tài khoản đã xác thực gọi, dùng quyền giáo
@@ -116,3 +151,6 @@ phân công cũng không thể xem hoặc chỉnh sửa. Dữ liệu cũ vẫn �
 khi đồng bộ hồ sơ trường hoặc chuyển năm học.
 
 Chế độ demo chỉ lưu bài tập trong trình duyệt hiện tại và không gọi Supabase.
+Tệp và ảnh demo được lưu trong IndexedDB của trình duyệt; xóa dữ liệu website
+sẽ xóa cả đính kèm demo. Tài khoản học sinh và gửi tệp/thông báo tự động chưa
+được bổ sung bởi tính năng đính kèm này.

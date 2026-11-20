@@ -7,7 +7,7 @@ const { chromium } = require('playwright');
 // Run with: node tests/teacher-homework.cjs
 // The demo and live RPC mock run without an Internet connection or school account.
 const root = path.resolve(process.env.TEACHER_SITE_TEST_ROOT || path.join(__dirname, '..', 'teacher-site'));
-const files = new Set(['index.html', 'auth-config.js', 'auth.js', 'teacher-portal.js', 'teacher-portal.css', 'teacher-homework.js', 'teacher-homework.css']);
+const files = new Set(['index.html', 'auth-config.js', 'auth.js', 'teacher-portal.js', 'teacher-portal.css', 'teacher-homework.js', 'teacher-homework.css', 'teacher-attachments.js']);
 const storageKey = 'thpt-teacher-demo-v1';
 const year = '2026-2027';
 const viewports = [{ width: 1280, height: 900 }, { width: 579, height: 532 }, { width: 390, height: 568 }, { width: 844, height: 390 }];
@@ -195,7 +195,7 @@ async function runLiveMock(browser, origin) {
     assert.equal(calls.length, 1);
     const args = calls[0].args;
     assert.match(args.p_homework_id, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
-    assert.deepEqual({ ...args, p_homework_id: 'generated-id' }, { p_owner_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', p_year: year, p_class_id: 'live-class', p_subject: 'Toán', p_homework_id: 'generated-id', p_title: 'Bài tập thật', p_instructions: 'Giải phương trình và nêu cách làm.', p_due_date: '2026-11-30', p_resource_url: '' });
+    assert.deepEqual({ ...args, p_homework_id: 'generated-id' }, { p_owner_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', p_year: year, p_class_id: 'live-class', p_subject: 'Toán', p_homework_id: 'generated-id', p_title: 'Bài tập thật', p_instructions: 'Giải phương trình và nêu cách làm.', p_due_date: '2026-11-30', p_resource_url: '', p_attachments: [] });
     await page.locator('#teacherHomeworkList [data-homework-edit]').click();
     await page.locator('#teacherHomeworkTitle').fill('Không được báo lưu thành công');
     await page.evaluate(() => { window.__homeworkMock.failSave = true; });

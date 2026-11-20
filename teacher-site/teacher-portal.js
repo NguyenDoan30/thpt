@@ -18,7 +18,7 @@
   const requests = new Set();
   const homework = window.createTeacherHomework({
     $, esc, icon, yearLabel, rpc, stillActive, saveDemoData,
-    getContext: () => ({portal, selectedSchool, user, demoMode, generation, operation}),
+    getContext: () => ({portal, selectedSchool, user, client, demoMode, generation, operation}),
     renderPage: () => { if (view === 'homework' && portal) render(); },
     onBusy: value => { $('#teacherSchool').disabled = $('#teacherYear').disabled = value || loading; },
   });
@@ -200,6 +200,7 @@
     }
     if (view !== 'home') {
       $('#teacherPage').innerHTML = view === 'schedule' ? renderSchedule() : view === 'classes' ? renderClasses() : view === 'homework' ? homework.render() : renderProfile();
+      if (view === 'homework') homework.hydrate();
       return;
     }
     const profile = portal.teacher;
