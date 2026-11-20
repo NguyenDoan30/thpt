@@ -137,7 +137,13 @@ async function runViewport(browser, origin, viewport) {
       const book = saved?.gradebooks?.find(item => item.classId === 'demo-10a2');
       return book?.scores['demo-student-20'] === 8.5 && book?.scores['demo-student-01'] === 7.2;
     });
+    assert.match(await page.locator('#teacherGradeMessage').textContent(), /Đã lưu điểm/, 'Saving must show an explicit success confirmation');
+    assert.equal(await page.locator('#teacherGradeMessage').evaluate(message => !!message.closest('.roster-footer')), true, 'Save confirmation must be in the fixed footer');
+    // Check the confirmation where saving leaves the user, without scrolling it into view.
+    await assertFullyVisible(page, '#teacherGradeMessage', 'Save confirmation after saving');
     await assertFullyVisible(page, '#teacherGradeSave', 'Save button after saving');
+    await page.locator(lastScoreSelector).fill('8.6');
+    assert.equal((await page.locator('#teacherGradeMessage').textContent()).trim(), '', 'Editing a score must clear the previous save confirmation');
     await page.locator('#teacherRosterClose').click();
     assert.equal(await page.locator('#teacherRosterDialog').count(), 0);
     await page.reload();
@@ -147,7 +153,7 @@ async function runViewport(browser, origin, viewport) {
     assert.equal(await page.locator(lastScoreSelector).inputValue(), '8.5', 'Last score must persist after a page reload and reopening the dialog');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'Dialog must fit the viewport horizontally');
     assert.deepEqual(errors, [], 'Demo interactions must have no JavaScript exceptions');
-    console.log('PASS ' + viewport.width + '×' + viewport.height + ': wheel over controls reaches all 20 students; last score editable; Save visible; filtering and reload retain scores.');
+    console.log('PASS ' + viewport.width + '×' + viewport.height + ': wheel over controls reaches all 20 students; last score editable; Save and confirmation visible; editing clears confirmation; filtering and reload retain scores.');
   } finally { await context.close(); }
 }
 
