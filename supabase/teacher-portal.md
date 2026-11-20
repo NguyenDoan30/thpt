@@ -18,8 +18,8 @@ khóa bí mật qua trò chuyện hay đưa vào mã website.
 
 Hai website dùng chung dự án Supabase và các hàm bên dưới, dù được hosting ở
 hai địa chỉ độc lập. Không cần sao chép dữ liệu hoặc chạy lại SQL khi tách
-website. Website quản lý cấp/thu hồi liên kết; website giáo viên chỉ gọi các
-hàm đọc dữ liệu theo quyền. Mã triển khai giáo viên nằm trong `teacher-site/`,
+website. Website quản lý cấp/thu hồi liên kết; website giáo viên gọi các hàm
+đọc dữ liệu và lưu sổ điểm, bài tập theo quyền. Mã triển khai giáo viên nằm trong `teacher-site/`,
 địa chỉ công khai mới được khai báo trong `portal-config.js` của website quản lý.
 
 Website quản lý: https://nguyendoan30.github.io/thpt/
@@ -30,8 +30,9 @@ Website giáo viên: https://thpt-le-quy-don-giao-vien.twinmonk2.chatgpt.site/
 
 Giáo viên chỉ được xem lớp đang được phân công hoặc chủ nhiệm, lịch dạy của mình
 và danh sách học sinh của các lớp đó theo năm học đã chọn. Danh sách học sinh
-không trả về CCCD. Trang giáo viên chỉ đọc; thay đổi từ trang quản lý được tải
-lại từ dữ liệu đã đồng bộ.
+không trả về CCCD. Thay đổi hồ sơ trường từ trang quản lý được tải lại từ dữ
+liệu đã đồng bộ. Điểm và bài tập do giáo viên nhập được lưu riêng, không sửa
+bản dữ liệu trường học.
 
 Mỗi liên kết gắn một tài khoản với một hồ sơ giáo viên tại một trường. Khi đổi
 email liên kết, tài khoản cũ mất quyền. Thu hồi liên kết, xóa hồ sơ hoặc chuyển
@@ -78,3 +79,40 @@ thuộc lớp đó. Giáo viên không thể đọc/ghi trực tiếp bảng đi
 
 Chế độ demo chỉ lưu điểm trong trình duyệt hiện tại; dữ liệu demo không gửi lên
 Supabase và không đại diện cho hồ sơ học sinh thật.
+
+## Giao bài tập
+
+Sau `sync.sql` và `teacher-portal.sql`, chạy toàn bộ
+`supabase/teacher-homework.sql` trong Supabase → SQL Editor → New query → Run.
+Script có thể chạy lại và không thay thế dữ liệu trường, điểm hoặc bài tập đã
+lưu. Cập nhật mã website không tự tạo bảng hoặc hàm trên Supabase; tài khoản
+thật cần hoàn tất bước SQL này để lưu và tải bài tập.
+
+Giáo viên mở **Giao bài tập**, chọn lớp và môn đang được phân công, nhập tên bài,
+nội dung và hạn nộp. Có thể thêm liên kết tài liệu HTTP/HTTPS. Danh sách hiển
+thị bài tập của chính giáo viên trong trường và năm học đang chọn. Khi chỉnh
+sửa, thời gian tạo ban đầu được giữ nguyên; mỗi bài có mã UUID riêng để gửi
+lại yêu cầu lưu mà không tạo bản sao. Phần sao chép tạo nội dung để giáo viên
+gửi cho học sinh; tính năng này chưa có tài khoản học sinh hoặc thông báo tự động.
+
+- `list_teacher_homework(p_owner_id, p_year)` trả về danh sách bài tập thuộc
+  tài khoản giáo viên, giới hạn ở các lớp và môn còn được phân công.
+- `save_teacher_homework(p_owner_id, p_year, p_class_id, p_subject, p_homework_id, p_title, p_instructions, p_due_date, p_resource_url)`
+  tạo hoặc cập nhật bài tập. `p_homework_id` là UUID do trình duyệt tạo để hỗ
+  trợ gửi lại yêu cầu; có thể truyền `null` để máy chủ tạo UUID. Tên bài bắt
+  buộc, tối đa 150 ký tự; nội dung bắt buộc, tối đa 10.000 ký tự; hạn nộp bắt
+  buộc là ngày hợp lệ theo `YYYY-MM-DD`; liên kết không bắt buộc, tối đa 2.000
+  ký tự và chỉ nhận HTTP/HTTPS.
+- Mỗi bản ghi trả về `id`, `classId`, `subject`, `title`, `instructions`,
+  `dueDate`, `resourceUrl`, `createdAt`, `updatedAt`.
+
+Bảng `school_teacher_homework` bật RLS và không cấp quyền đọc/ghi trực tiếp
+cho trình duyệt. Hai RPC chỉ cho tài khoản đã xác thực gọi, dùng quyền giáo
+viên hiện tại từ `get_teacher_portal` ở mỗi yêu cầu. Chỉ giáo viên được nhà
+trường liên kết, còn đang giảng dạy và được phân công đúng lớp/môn mới được
+lưu. Tài khoản quản lý không tự nhận quyền giáo viên. Bài tập của giáo viên
+khác không thể bị cập nhật, kể cả khi biết UUID; bài của lớp/môn đã bị thu hồi
+phân công cũng không thể xem hoặc chỉnh sửa. Dữ liệu cũ vẫn được giữ riêng
+khi đồng bộ hồ sơ trường hoặc chuyển năm học.
+
+Chế độ demo chỉ lưu bài tập trong trình duyệt hiện tại và không gọi Supabase.

@@ -222,7 +222,6 @@ comment on table public.school_teacher_access is 'Explicit school-owner grants t
 comment on function public.get_teacher_portal(uuid, text) is 'Read-only, server-filtered teacher data. Never returns the complete school snapshot or student CCCD.';
 notify pgrst, 'reload schema';
 commit;
-\n
 
 -- Teacher gradebooks are stored separately from school snapshots so scores
 -- survive edits and transitions between academic years.

@@ -8,7 +8,7 @@ const { chromium } = require('playwright');
 // CHROMIUM_PATH may select an installed browser. TEACHER_SITE_TEST_ROOT may
 // select an exported historical teacher-site directory for regression checks.
 const root = path.resolve(process.env.TEACHER_SITE_TEST_ROOT || path.join(__dirname, '..', 'teacher-site'));
-const files = new Set(['index.html', 'auth-config.js', 'auth.js', 'teacher-portal.js', 'teacher-portal.css']);
+const files = new Set(['index.html', 'auth-config.js', 'auth.js', 'teacher-portal.js', 'teacher-portal.css', 'teacher-homework.js', 'teacher-homework.css']);
 const viewports = [
   { width: 778, height: 746 },
   { width: 520, height: 490 },
