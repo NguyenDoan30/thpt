@@ -2,6 +2,10 @@
 'use strict';
 window.createTeacherAttachments = function ({ esc, getContext, onError }) {
   const bucket = 'teacher-homework-files', maxFiles = 5, maxSize = 5 * 1024 * 1024;
+  const previewTypes = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
+  const mimePattern = /^[a-z0-9][a-z0-9!#  const bucket = 'teacher-homework-files', maxFiles = 5, maxSize = 5 * 1024 * 1024;
+^_.+-]{0,63}\/[a-z0-9][a-z0-9!#  const bucket = 'teacher-homework-files', maxFiles = 5, maxSize = 5 * 1024 * 1024;
+^_.+-]{0,63}$/;
   const types = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif', pdf: 'application/pdf', doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xls: 'application/vnd.ms-excel', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ppt: 'application/vnd.ms-powerpoint', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', txt: 'text/plain' };
   const memory = new Map(), known = new Map(), urls = new Map();
   let database, lifecycle = 0;
@@ -25,18 +29,20 @@ window.createTeacherAttachments = function ({ esc, getContext, onError }) {
     });
   }
   function normalize(value) {
-    return (Array.isArray(value) ? value : []).filter(item => item && typeof item.id === 'string' && typeof item.path === 'string' && typeof item.name === 'string' && Object.values(types).includes(item.type) && Number.isInteger(item.size) && item.size > 0 && item.size <= maxSize).slice(0, maxFiles).map(item => ({ id: item.id, name: item.name, type: item.type, size: item.size, path: item.path }));
+    return (Array.isArray(value) ? value : []).filter(item => item && typeof item.id === 'string' && typeof item.path === 'string' && typeof item.name === 'string' && typeof item.type === 'string' && mimePattern.test(item.type.toLowerCase()) && Number.isInteger(item.size) && item.size > 0 && item.size <= maxSize).slice(0, maxFiles).map(item => ({ id: item.id, name: item.name, type: item.type, size: item.size, path: item.path }));
   }
   function select(files, existing, homeworkId, imagesOnly) {
     const selected = Array.from(files || []), c = getContext();
     if (existing.length + selected.length > maxFiles) throw new Error('Mỗi bài tập được đính kèm tối đa 5 tệp.');
     const prepared = selected.map(file => {
-      const extension = file.name.split('.').pop().toLowerCase(), type = types[extension];
-      if (!type || (imagesOnly && !type.startsWith('image/')) || (file.type && file.type !== 'application/octet-stream' && file.type !== type)) throw new Error('Chỉ hỗ trợ ảnh PNG, JPG, WebP, GIF, PDF, Word, Excel, PowerPoint và TXT.');
+      const extension = file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : '';
+      const suppliedType = String(file.type || '').split(';')[0].trim().toLowerCase(), type = types[extension] || (mimePattern.test(suppliedType) ? suppliedType : 'application/octet-stream');
+      if (imagesOnly && !previewTypes.has(type)) throw new Error('Thêm ảnh hỗ trợ định dạng PNG, JPG, WebP và GIF.');
       if (!file.size || file.size > maxSize) throw new Error('Mỗi tệp phải có dung lượng lớn hơn 0 và không quá 5 MB.');
       if (file.name.length > 255 || /[/\\\u0000-\u001f\u007f]/.test(file.name)) throw new Error('Tên tệp không hợp lệ hoặc quá dài.');
       const id = crypto.randomUUID();
-      return { meta: { id, name: file.name, type, size: file.size, path: [c.user.id, c.selectedSchool, homeworkId, id + '.' + extension].join('/') }, blob: new Blob([file], { type }) };
+      const safeExtension = /^[a-z0-9]{1,12}$/.test(extension) ? '.' + extension : '';
+      return { meta: { id, name: file.name, type, size: file.size, path: [c.user.id, c.selectedSchool, homeworkId, id + safeExtension].join('/') }, blob: new Blob([file], { type }) };
     });
     for (const item of prepared) memory.set(item.meta.path, { blob: item.blob, uploaded: false });
     return [...existing, ...prepared.map(item => item.meta)];
@@ -45,7 +51,7 @@ window.createTeacherAttachments = function ({ esc, getContext, onError }) {
   function render(files, draft = false) {
     return '<ul class="homework-attachments-list">' + normalize(files).map(file => {
       known.set(file.id, file);
-      return '<li class="homework-attachment">' + (file.type.startsWith('image/') ? '<img class="homework-attachment-preview" data-homework-preview="' + esc(file.id) + '" alt="Ảnh đính kèm: ' + esc(file.name) + '" loading="lazy">' : '<span class="homework-file-icon" aria-hidden="true">TỆP</span>') + '<div class="homework-file-info"><span class="homework-file-name">' + esc(file.name) + '</span><small>' + sizeLabel(file.size) + '</small></div><button class="btn btn-secondary" type="button" ' + (draft ? 'data-homework-remove-file' : 'data-homework-download') + '="' + esc(file.id) + '" aria-label="' + (draft ? 'Gỡ tệp ' : 'Tải tệp ') + esc(file.name) + '">' + (draft ? 'Gỡ' : 'Tải xuống') + '</button></li>';
+      return '<li class="homework-attachment">' + (previewTypes.has(file.type) ? '<img class="homework-attachment-preview" data-homework-preview="' + esc(file.id) + '" alt="Ảnh đính kèm: ' + esc(file.name) + '" loading="lazy">' : '<span class="homework-file-icon" aria-hidden="true">TỆP</span>') + '<div class="homework-file-info"><span class="homework-file-name">' + esc(file.name) + '</span><small>' + sizeLabel(file.size) + '</small></div><button class="btn btn-secondary" type="button" ' + (draft ? 'data-homework-remove-file' : 'data-homework-download') + '="' + esc(file.id) + '" aria-label="' + (draft ? 'Gỡ tệp ' : 'Tải tệp ') + esc(file.name) + '">' + (draft ? 'Gỡ' : 'Tải xuống') + '</button></li>';
     }).join('') + '</ul>';
   }
   function scopeKey(c) { return [c.user?.id, c.selectedSchool, c.portal?.current, c.demoMode].join('|'); }
