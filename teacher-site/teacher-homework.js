@@ -20,6 +20,24 @@ window.createTeacherHomework = function ({ $, esc, icon, yearLabel, getContext, 
   function dateToInput(value) {
     return validDate(value) ? value.slice(8, 10) + '/' + value.slice(5, 7) + '/' + value.slice(0, 4) : '';
   }
+  function formatDateInput(value) {
+    const digits = String(value || '').replace(/[^0-9]/g, '').slice(0, 8);
+    if (digits.length < 2) return digits;
+    if (digits.length === 2) return digits + '/';
+    if (digits.length < 4) return digits.slice(0, 2) + '/' + digits.slice(2);
+    if (digits.length === 4) return digits.slice(0, 2) + '/' + digits.slice(2) + '/';
+    return digits.slice(0, 2) + '/' + digits.slice(2, 4) + '/' + digits.slice(4);
+  }
+  function dateInputCaret(value, digitCount) {
+    let position = 0, digits = 0;
+    while (position < value.length && digits < digitCount) {
+      if (/[0-9]/.test(value[position])) digits++;
+      position++;
+    }
+    if (digitCount === 2 && value[position] === '/') position++;
+    if (digitCount === 4 && value[position] === '/') position++;
+    return Math.min(position, value.length);
+  }
   function dateInputToISO(value) {
     const match = /^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})$/.exec(String(value || '').trim());
     if (!match) return '';
@@ -95,8 +113,15 @@ window.createTeacherHomework = function ({ $, esc, icon, yearLabel, getContext, 
   function input(event) {
     if (!event.target.closest('#teacherHomeworkForm') || !event.target.name) return;
     if (event.target.name === 'dueDateInput') {
-      draft.dueDateInput = event.target.value;
-      draft.dueDate = dateInputToISO(event.target.value);
+      const field = event.target, raw = field.value;
+      const caret = Number.isInteger(field.selectionStart) ? field.selectionStart : raw.length;
+      const digitsBeforeCaret = raw.slice(0, caret).replace(/[^0-9]/g, '').length;
+      const formatted = formatDateInput(raw);
+      field.value = formatted;
+      const nextCaret = dateInputCaret(formatted, digitsBeforeCaret);
+      field.setSelectionRange(nextCaret, nextCaret);
+      draft.dueDateInput = formatted;
+      draft.dueDate = dateInputToISO(formatted);
     } else draft[event.target.name] = event.target.value;
     if (message && !error) { message = ''; const node = $('#teacherHomeworkMessage'); if (node) node.textContent = ''; }
   }
