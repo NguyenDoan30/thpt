@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#183b36">
+  <meta name="description" content="Cổng học sinh xem thời khóa biểu, bài tập, bài kiểm tra online và điểm cá nhân.">
+  <title>Cổng học sinh — THPT</title>
+  <link rel="stylesheet" href="student.css">
+  <script src="../auth-config.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js" integrity="sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O" crossorigin="anonymous" defer></script>
+  <script src="student.js" defer></script>
+</head>
+<body>
+  <main id="loginScreen" class="login-shell">
+    <section class="login-card">
+      <div class="brand-mark" aria-hidden="true">TH</div>
+      <p class="eyebrow">CỔNG THÔNG TIN HỌC SINH</p>
+      <h1>Đăng nhập học sinh</h1>
+      <p class="muted">Xem thời khóa biểu, bài tập, bài kiểm tra và điểm của bạn.</p>
+      <form id="loginForm" class="login-form">
+        <label for="loginEmail">Email học sinh</label>
+        <input id="loginEmail" type="email" autocomplete="username" required placeholder="tenban@email.com">
+        <label for="loginPassword">Mật khẩu</label>
+        <input id="loginPassword" type="password" autocomplete="current-password" required placeholder="Mật khẩu được nhà trường cấp">
+        <p id="loginError" class="form-message" role="alert" aria-live="polite"></p>
+        <button id="loginButton" class="button button-primary button-wide" type="submit">Đăng nhập</button>
+      </form>
+      <div class="login-divider"><span>hoặc</span></div>
+      <button id="demoButton" class="button button-secondary button-wide" type="button">Xem bản demo</button>
+      <p class="login-footnote">Tài khoản do nhà trường cấp. Cổng này không có chức năng tự đăng ký.</p>
+    </section>
+  </main>
+
+  <main id="portalApp" class="portal-shell" hidden>
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="Cổng học sinh">
+        <span class="brand-mark small" aria-hidden="true">TH</span>
+        <span><strong id="schoolName">Cổng học sinh</strong><small>KHÔNG GIAN HỌC TẬP</small></span>
+      </a>
+      <div class="topbar-actions">
+        <label class="select-wrap" id="schoolPickerWrap" hidden>
+          <span class="sr-only">Chọn trường</span>
+          <select id="schoolSelect" aria-label="Chọn trường"></select>
+        </label>
+        <label class="select-wrap">
+          <span class="sr-only">Chọn năm học</span>
+          <select id="yearSelect" aria-label="Chọn năm học"></select>
+        </label>
+        <button id="refreshButton" class="icon-button" type="button" aria-label="Làm mới dữ liệu" title="Làm mới">↻</button>
+        <button id="signOutButton" class="button button-secondary signout-button" type="button">Đăng xuất</button>
+      </div>
+    </header>
+    <div id="demoBanner" class="demo-banner" hidden>BẢN DEMO · DỮ LIỆU GIẢ LẬP, KHÔNG PHẢI HỒ SƠ THẬT</div>
+    <div id="portalNotice" class="portal-notice" role="status" aria-live="polite" hidden></div>
+    <section id="studentWorkspace" hidden>
+      <section class="welcome-card">
+        <div>
+          <p class="eyebrow">KHÔNG GIAN HỌC TẬP CỦA BẠN</p>
+          <h1>Chào <span id="studentName">bạn</span></h1>
+          <p id="studentClass" class="welcome-meta"></p>
+        </div>
+        <div class="welcome-year"><span>Năm học</span><strong id="welcomeYear"></strong></div>
+      </section>
+      <nav class="student-nav" aria-label="Các mục học sinh">
+        <button class="nav-tab active" data-view="home" type="button">Tổng quan</button>
+        <button class="nav-tab" data-view="schedule" type="button">Thời khóa biểu</button>
+        <button class="nav-tab" data-view="homework" type="button">Bài tập &amp; kiểm tra</button>
+        <button class="nav-tab" data-view="grades" type="button">Điểm của tôi</button>
+      </nav>
+      <section id="viewContent" aria-live="polite"></section>
+    </section>
+    <footer class="portal-footer">Nếu thông tin lớp, bài tập hoặc điểm chưa đúng, hãy liên hệ giáo viên phụ trách.</footer>
+  </main>
+</body>
+</html>
