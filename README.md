@@ -50,6 +50,20 @@ Thiết lập một lần:
 
 Mã nguồn triển khai độc lập nằm trong `teacher-site/`. Xuất bản nội dung thư mục này làm gốc của website giáo viên; chỉ gồm giao diện giáo viên, thư viện đăng nhập và cấu hình Supabase công khai, không kèm các chức năng quản lý. `_config.yml` loại thư mục nguồn này khỏi website quản lý trên GitHub Pages. Khi thay đổi `auth.js` hoặc Project URL/Publishable key, cập nhật bản tương ứng trong `teacher-site/` rồi xuất bản lại website giáo viên. Không cần sao chép dữ liệu giữa hai website hoặc chạy lại SQL khi đổi địa chỉ hosting.
 
+
+## Trang dành cho học sinh
+
+Cổng học sinh được xuất bản trong cùng repository GitHub Pages: https://nguyendoan30.github.io/thpt/student-site/. Học sinh có thể xem thời khóa biểu của lớp, bài tập, bài kiểm tra online và điểm đã được giáo viên lưu. Các tệp đính kèm tải qua liên kết tạm có kiểm tra quyền theo đúng lớp. Trang không cho học sinh xem hồ sơ hoặc điểm của bạn khác và không có chức năng tự đăng ký.
+
+Thiết lập một lần:
+
+1. Chạy [SQL cổng học sinh](supabase/student-portal.sql) sau sync.sql, teacher-portal.sql và teacher-homework.sql trong Supabase SQL Editor.
+2. Trong Supabase → Authentication → Users, nhà trường tạo tài khoản email/mật khẩu cho học sinh và xác nhận email. Giữ tắt đăng ký công khai.
+3. Trong trang quản lý, mở lớp → hồ sơ học sinh, nhập cùng email vào trường **Email đăng nhập học sinh**, rồi chờ **Đã đồng bộ**. Mỗi email chỉ gắn với một hồ sơ trong cùng năm học; hồ sơ mẫu không thể đăng nhập.
+4. Học sinh mở địa chỉ trên và đăng nhập bằng email/mật khẩu đã cấp. Nút **Xem bản demo** dùng dữ liệu giả lập, không cần tài khoản.
+
+Hồ sơ học sinh đã tạo trước đây chưa có email; nhà trường cần thêm email cho từng học sinh muốn cấp tài khoản. Khi tạo năm học mới bằng chức năng chuyển tiếp, email đi cùng hồ sơ học sinh. Nếu thay đổi email tài khoản, cần cập nhật cả Supabase Auth và hồ sơ học sinh.
+
 ## Tính năng
 
 - Thêm, sửa, xóa lớp; kiểm tra sĩ số từ 0 đến 60 học sinh.
