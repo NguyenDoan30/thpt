@@ -33,7 +33,7 @@ window.createTeacherAttachments = function ({ esc, getContext, onError }) {
   }
   function select(files, existing, homeworkId, imagesOnly) {
     const selected = Array.from(files || []), c = getContext();
-    if (existing.length + selected.length > maxFiles) throw new Error('Mỗi bài tập được đính kèm tối đa 5 tệp.');
+    if (existing.length + selected.length > maxFiles) throw new Error('Mỗi bài được đính kèm tối đa 5 tệp.');
     const prepared = selected.map(file => {
       const extension = file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : '';
       const suppliedType = String(file.type || '').split(';')[0].trim().toLowerCase(), type = types[extension] || (mimePattern.test(suppliedType) ? suppliedType : 'application/octet-stream');
