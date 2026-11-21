@@ -43,3 +43,10 @@ Mỗi lần ghi thành công tăng `revision`. Hàm chỉ lưu khi `p_expected_r
 Đăng nhập cùng một tài khoản trên hai trình duyệt hoặc thiết bị. Thêm một lớp thử, sửa tên trường và chọn ảnh đại diện trên thiết bị thứ nhất; kiểm tra thiết bị thứ hai nhận các thay đổi sau khi đồng bộ. Thử sửa đồng thời để kiểm tra thông báo xung đột. Đăng nhập bằng tài khoản được cấp khác để kiểm tra dữ liệu được tách riêng.
 
 Nếu website báo chưa thiết lập đồng bộ, kiểm tra SQL đã chạy trong đúng dự án nêu trên và các tệp website đã được triển khai đầy đủ. Nếu API báo không có bảng hoặc hàm dù SQL vừa thành công, tải lại trang sau vài giây để bộ nhớ đệm schema cập nhật. Không sửa lỗi quyền bằng cách tắt RLS hoặc cấp quyền ghi trực tiếp.
+
+
+## Cổng học sinh
+
+Chạy [student-portal.sql](./student-portal.sql) sau sync.sql, teacher-portal.sql và teacher-homework.sql bằng role postgres. Script tạo các hàm RPC đã lọc theo email đã xác nhận và điều chỉnh quyền đọc tệp bài tập để học sinh chỉ mở được tệp thuộc lớp của mình. Nếu chạy lại teacher-homework.sql sau đó, hãy chạy lại student-portal.sql để khôi phục quyền đọc tệp học sinh.
+
+Nhà trường tạo tài khoản học sinh trong Supabase Auth, xác nhận email, sau đó nhập cùng email vào trường **Email đăng nhập học sinh** ở hồ sơ học sinh trong trang quản lý. Không bật tự đăng ký. Email chưa gắn, hồ sơ trùng email trong cùng năm học, hồ sơ mẫu hoặc năm học không có hồ sơ tương ứng đều bị từ chối. RPC chỉ trả về học sinh đang đăng nhập, thời khóa biểu/lớp của em, bài tập, bài kiểm tra và điểm của em; không trả CCCD hay danh sách học sinh khác.
