@@ -115,7 +115,7 @@ gửi cho học sinh; tính năng này chưa có tài khoản học sinh hoặc 
   `dueDate`, `resourceUrl`, `type`, `attachments`, `createdAt`, `updatedAt`.
 
 Tệp thật được tải vào bucket **private** `teacher-homework-files`, giới hạn
-5 MiB và các MIME tương ứng với định dạng nêu trên. Đường dẫn có dạng
+5 MiB cho mỗi tệp; mọi định dạng tệp có MIME hợp lệ đều được chấp nhận. Đường dẫn có dạng
 `teacherUserId/ownerId/homeworkId/attachmentId.extension`; các ID đều là UUID,
 phần mở rộng viết thường. Trình duyệt gửi MIME chuẩn khi tải lên (dùng phần mở
 rộng để xác định nếu thiết bị không cung cấp MIME). Mỗi lần thêm tệp dùng UUID
