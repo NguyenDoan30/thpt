@@ -529,6 +529,6 @@
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
     }
   });
-  window.addEventListener('focus', () => { if (user && !loading && !document.hidden) refresh(); });
+  window.addEventListener('focus', () => { if (user && !loading && !document.hidden && !demoMode) refresh(); });
 })();
 
