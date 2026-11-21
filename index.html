@@ -173,7 +173,7 @@
       const count=Math.max(0,Math.min(60,Math.trunc(Number(c.students)||0))),birthYear=c.admissionYear-15;
       return Array.from({length:count},(_,index)=>{
         const number=index+1,birthDate=birthYear+'-'+String(index%12+1).padStart(2,'0')+'-'+String(index%28+1).padStart(2,'0');
-        return {id:'sample-'+c.id+'-'+number,classId:c.id,fullName:'Học sinh mẫu '+String(number).padStart(2,'0'),birthDate:validBirthDate(birthDate)?birthDate:'',cccd:'',isSample:true};
+        return {id:'sample-'+c.id+'-'+number,classId:c.id,fullName:'Học sinh mẫu '+String(number).padStart(2,'0'),birthDate:validBirthDate(birthDate)?birthDate:'',cccd:'',email:'',isSample:true};
       });
     }
     function initializeSampleRosters(record){
@@ -355,9 +355,9 @@
     function openStudentModal(idValue){
       const c=cls(profileClass),s=data.studentProfiles.find(x=>x.id===idValue&&x.classId===profileClass);
       if(!c)return;if(idValue&&!s)return;const limit=profileLimit(c.id);if(!s&&profilesFor(c.id).length>=limit){toast(limit?'Lớp đã nhập đủ '+limit+' hồ sơ theo sĩ số. Hãy tăng sĩ số trong Sửa lớp trước khi thêm.':'Hãy cập nhật sĩ số lớp lớn hơn 0 trước khi thêm học sinh.');return}
-      modalForm('student',s?'Sửa hồ sơ học sinh':'Thêm học sinh','Lớp '+esc(c.name)+' · Nhập thông tin học sinh.',field('Họ và tên học sinh','fullName',s&&s.fullName,'Nhập đầy đủ họ và tên',{full:true,maxlength:100})+birthDateField(s?displayBirthDate(s.birthDate):'')+field('Số CCCD','cccd',s&&s.cccd,'Nhập 12 chữ số',{required:false,maxlength:12}),false);
+      modalForm('student',s?'Sửa hồ sơ học sinh':'Thêm học sinh','Lớp '+esc(c.name)+' · Nhập thông tin học sinh.',field('Họ và tên học sinh','fullName',s&&s.fullName,'Nhập đầy đủ họ và tên',{full:true,maxlength:100})+birthDateField(s?displayBirthDate(s.birthDate):'')+field('Số CCCD','cccd',s&&s.cccd,'Nhập 12 chữ số',{required:false,maxlength:12})+(s&&s.isSample?'<div class="field full"><label>Email đăng nhập học sinh</label><small class="field-help">Hồ sơ mẫu không thể dùng để đăng nhập.</small></div>':field('Email đăng nhập học sinh','email',s&&s.email,'Email tài khoản do nhà trường cấp',{full:true,required:false,type:'email',maxlength:254})),false);
       const form=$('#modalRoot form');form.dataset.id=idValue||'';form.dataset.classId=c.id;
-      $('#f-fullName').setAttribute('autocomplete','off');$('#f-cccd').setAttribute('inputmode','numeric');$('#f-cccd').setAttribute('autocomplete','off');$('#f-cccd').setAttribute('pattern','[0-9]{12}');$('#f-cccd').setAttribute('aria-describedby','cccd-help');$('#f-cccd').insertAdjacentHTML('afterend','<small id="cccd-help" class="field-help">Có thể để trống nếu học sinh chưa có CCCD.</small>');
+      $('#f-fullName').setAttribute('autocomplete','off');if($('#f-email'))$('#f-email').setAttribute('autocomplete','email');$('#f-cccd').setAttribute('inputmode','numeric');$('#f-cccd').setAttribute('autocomplete','off');$('#f-cccd').setAttribute('pattern','[0-9]{12}');$('#f-cccd').setAttribute('aria-describedby','cccd-help');$('#f-cccd').insertAdjacentHTML('afterend','<small id="cccd-help" class="field-help">Có thể để trống nếu học sinh chưa có CCCD.</small>');
       $('#f-birthDate').setAttribute('inputmode','numeric');$('#f-birthDate').setAttribute('autocomplete','off');$('#f-birthDate').setAttribute('spellcheck','false');$('#f-birthDate').setAttribute('aria-describedby','birthdate-help');$('.birthdate-shell').insertAdjacentHTML('afterend','<small id="birthdate-help" class="field-help">Chỉ cần gõ số. Nhập đủ 4 chữ số cho năm.</small>');
       $('#formError').setAttribute('role','alert');$('#formError').setAttribute('aria-live','polite');
     }
@@ -579,11 +579,13 @@
       if(kind==='student'){
         const classId=form.dataset.classId,existing=data.studentProfiles.find(s=>s.id===recordId&&s.classId===classId);
         if(!cls(classId)||recordId&&!existing){showError('Không tìm thấy lớp hoặc hồ sơ học sinh.');return}
-        const values={classId,fullName:String(f.get('fullName')||'').trim().replace(/\s+/g,' '),birthDate:parseBirthDate(f.get('birthDate')),cccd:String(f.get('cccd')||'').trim()};
+        const values={classId,fullName:String(f.get('fullName')||'').trim().replace(/\s+/g,' '),birthDate:parseBirthDate(f.get('birthDate')),cccd:String(f.get('cccd')||'').trim(),email:existing&&existing.isSample?'':String(f.get('email')||'').trim().toLowerCase()};
         if(!values.fullName||values.fullName.length>100){showError('Vui lòng nhập họ tên học sinh, tối đa 100 ký tự.');return}
         if(!validBirthDate(values.birthDate)){showError('Nhập ngày sinh hợp lệ theo ngày/tháng/năm, từ năm 1900 và không ở tương lai.');return}
         if(values.cccd&&!/^[0-9]{12}$/.test(values.cccd)){showError('Số CCCD phải gồm đúng 12 chữ số.');return}
         if(values.cccd&&data.studentProfiles.some(s=>s.id!==recordId&&s.cccd===values.cccd)){showError('Số CCCD này đã có trong hồ sơ học sinh khác.');return}
+        if(values.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)){showError('Email đăng nhập chưa đúng định dạng.');return}
+        if(values.email&&data.studentProfiles.some(s=>s.id!==recordId&&!s.isSample&&String(s.email||'').trim().toLowerCase()===values.email)){showError('Email này đã được gắn với hồ sơ học sinh khác trong năm học đang xem.');return}
         if(!recordId&&profilesFor(classId).length>=profileLimit(classId)){showError('Lớp đã nhập đủ hồ sơ theo sĩ số ('+profileLimit(classId)+'). Hãy cập nhật sĩ số lớp trước khi thêm học sinh.');return}
         const previous=data.studentProfiles;
         data.studentProfiles=recordId?previous.map(s=>s.id===recordId?{...s,...values}:s):[...previous,{id:id(),...values}];
