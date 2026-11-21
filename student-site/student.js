@@ -222,7 +222,7 @@
       if(result.error)throw result.error;
       const url=result.data&&result.data.signedUrl;
       if(!url)throw new Error('signed_url_missing');
-      window.open(url,'_blank','noopener,noreferrer');
+      window.location.assign(url);
     }catch(error){notify('Không mở được tệp. Hãy thử lại hoặc liên hệ giáo viên.',true)}
     finally{button.disabled=false;button.innerHTML=old}
   }
