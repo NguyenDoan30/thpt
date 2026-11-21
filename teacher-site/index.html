@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="teacher-portal.css?v=homework1">
-  <link rel="stylesheet" href="teacher-homework.css?v=anyfiles1">
+  <link rel="stylesheet" href="teacher-homework.css?v=assessments1">
 </head>
 <body>
   <svg class="svg-defs" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -49,6 +49,7 @@
         <button class="nav-btn" type="button" data-teacher-view="schedule"><svg aria-hidden="true"><use href="#i-calendar"/></svg><span>Lịch dạy</span></button>
         <button class="nav-btn" type="button" data-teacher-view="classes"><svg aria-hidden="true"><use href="#i-book"/></svg><span>Lớp phụ trách</span></button>
         <button class="nav-btn" type="button" data-teacher-view="homework"><svg aria-hidden="true"><use href="#i-book"/></svg><span>Giao bài tập</span></button>
+        <button class="nav-btn" type="button" data-teacher-view="assessments"><svg aria-hidden="true"><use href="#i-book"/></svg><span>Bài kiểm tra</span></button>
         <button class="nav-btn" type="button" data-teacher-view="profile"><svg aria-hidden="true"><use href="#i-user"/></svg><span>Hồ sơ của tôi</span></button>
       </nav>
       <div class="side-bottom"><div class="side-note"><svg aria-hidden="true"><use href="#i-book"/></svg><strong id="sideNoteTitle">Đồng hành cùng học sinh</strong><p id="sideNoteCopy">Lịch dạy và lớp học được cập nhật từ phân công của nhà trường.</p></div><div class="account"><div class="account-avatar" id="teacherInitials">GV</div><div><div id="currentAccountName" class="account-email"></div><div class="account-role" id="accountRole">Tài khoản giáo viên</div></div></div><button class="logout-btn" id="logoutButton" type="button">Đăng xuất</button></div>
@@ -65,7 +66,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js" integrity="sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O" crossorigin="anonymous" defer></script>
   <script src="teacher-attachments.js?v=anyfiles1" defer></script>
   <script src="teacher-homework.js?v=anyfiles1" defer></script>
-  <script src="teacher-portal.js?v=filepicker1" defer></script>
+  <script src="teacher-portal.js?v=assessments1" defer></script>
   <script src="auth.js?v=teacher2" defer></script>
 </body>
 </html>
