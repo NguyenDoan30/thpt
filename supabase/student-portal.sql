@@ -241,18 +241,16 @@ begin
   v_owner := v_parts[2]::uuid;
   v_homework_id := v_parts[3]::uuid;
 
-  if not exists (
-    select 1 from public.school_teacher_access a
-      join public.school_workspaces w on w.user_id = a.owner_id
-      cross join lateral pg_catalog.jsonb_array_elements(coalesce(w.payload -> 'teachers', '[]'::jsonb)) person
-      where a.owner_id = v_owner and a.teacher_id = v_author
-        and public.school_teacher_key(person ->> 'name') = a.teacher_key
-        and coalesce(person ->> 'status', 'Đang giảng dạy') = 'Đang giảng dạy'
-  ) then
-    return false;
-  end if;
   if p_write then
-    return v_user = v_author;
+    if v_user <> v_author then return false; end if;
+    return exists (
+      select 1 from public.school_teacher_access a
+        join public.school_workspaces w on w.user_id = a.owner_id
+        cross join lateral pg_catalog.jsonb_array_elements(coalesce(w.payload -> 'teachers', '[]'::jsonb)) person
+        where a.owner_id = v_owner and a.teacher_id = v_author
+          and public.school_teacher_key(person ->> 'name') = a.teacher_key
+          and coalesce(person ->> 'status', 'Đang giảng dạy') = 'Đang giảng dạy'
+    );
   end if;
 
   select h.* into v_homework
@@ -263,11 +261,26 @@ begin
       and exists(select 1 from pg_catalog.jsonb_array_elements(h.attachments) item
         where item ->> 'path' = p_name);
   if not found then
-    -- Teachers may inspect/remove their own unsaved draft objects.
-    return v_user = v_author;
+    -- Teachers can inspect their own drafts while their profile is active.
+    return v_user = v_author and exists (
+      select 1 from public.school_teacher_access a
+        join public.school_workspaces w on w.user_id = a.owner_id
+        cross join lateral pg_catalog.jsonb_array_elements(coalesce(w.payload -> 'teachers', '[]'::jsonb)) person
+        where a.owner_id = v_owner and a.teacher_id = v_author
+          and public.school_teacher_key(person ->> 'name') = a.teacher_key
+          and coalesce(person ->> 'status', 'Đang giảng dạy') = 'Đang giảng dạy'
+    );
   end if;
 
   if v_user = v_author then
+    if not exists (
+      select 1 from public.school_teacher_access a
+        join public.school_workspaces w on w.user_id = a.owner_id
+        cross join lateral pg_catalog.jsonb_array_elements(coalesce(w.payload -> 'teachers', '[]'::jsonb)) person
+        where a.owner_id = v_owner and a.teacher_id = v_author
+          and public.school_teacher_key(person ->> 'name') = a.teacher_key
+          and coalesce(person ->> 'status', 'Đang giảng dạy') = 'Đang giảng dạy'
+    ) then return false; end if;
     begin
       v_portal := public.get_teacher_portal(v_owner, v_homework.school_year);
     exception when others then
