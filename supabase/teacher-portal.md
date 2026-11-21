@@ -101,8 +101,8 @@ gửi cho học sinh; tính năng này chưa có tài khoản học sinh hoặc 
 
 - `list_teacher_homework(p_owner_id, p_year)` trả về danh sách bài tập thuộc
   tài khoản giáo viên, giới hạn ở các lớp và môn còn được phân công.
-- `save_teacher_homework(p_owner_id, p_year, p_class_id, p_subject, p_homework_id, p_title, p_instructions, p_due_date, p_resource_url, p_attachments default null)`
-  tạo hoặc cập nhật bài tập. `p_homework_id` là UUID do trình duyệt tạo để hỗ
+- `save_teacher_homework(p_owner_id, p_year, p_class_id, p_subject, p_homework_id, p_title, p_instructions, p_due_date, p_resource_url, p_attachments default null, p_type default 'assignment')`
+  tạo hoặc cập nhật bài tập hoặc bài kiểm tra online. `p_type` nhận `assignment` hoặc `online_test`, mặc định là `assignment`; bài kiểm tra có thể lưu liên kết online và tệp đính kèm. `p_homework_id` là UUID do trình duyệt tạo để hỗ
   trợ gửi lại yêu cầu; có thể truyền `null` để máy chủ tạo UUID. Tên bài bắt
   buộc, tối đa 150 ký tự; nội dung bắt buộc, tối đa 10.000 ký tự; hạn nộp bắt
   buộc là ngày hợp lệ theo `YYYY-MM-DD`; liên kết không bắt buộc, tối đa 2.000
@@ -110,9 +110,9 @@ gửi cho học sinh; tính năng này chưa có tài khoản học sinh hoặc 
   mỗi phần tử gồm `id`, `name`, `type`, `size`, `path`. Truyền `[]` để bỏ mọi
   đính kèm; bỏ tham số hoặc truyền SQL `null` giữ nguyên đính kèm khi chỉnh sửa
   bằng phiên bản website cũ. Chỉ có một chữ ký RPC; bản SQL mới gỡ chữ ký chín
-  tham số cũ, thay bằng mười tham số với giá trị mặc định để tránh nhập nhằng.
+  tham số cũ, thay bằng mười một tham số với giá trị mặc định để tránh nhập nhằng.
 - Mỗi bản ghi trả về `id`, `classId`, `subject`, `title`, `instructions`,
-  `dueDate`, `resourceUrl`, `attachments`, `createdAt`, `updatedAt`.
+  `dueDate`, `resourceUrl`, `type`, `attachments`, `createdAt`, `updatedAt`.
 
 Tệp thật được tải vào bucket **private** `teacher-homework-files`, giới hạn
 5 MiB và các MIME tương ứng với định dạng nêu trên. Đường dẫn có dạng
