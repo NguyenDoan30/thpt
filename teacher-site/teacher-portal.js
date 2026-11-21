@@ -188,7 +188,7 @@
     return '<div class="stat-card"><div class="stat-top"><span class="stat-label">' + esc(label) + '</span><span class="stat-icon ' + tone + '">' + icon(symbol) + '</span></div><div class="stat-value">' + esc(value) + '</div><div class="stat-foot">' + esc(detail) + '</div></div>';
   }
   function render() {
-    const labels = {home:'Trang chủ',schedule:'Lịch dạy',classes:'Lớp phụ trách',profile:'Hồ sơ của tôi',homework:'Giao bài tập'};
+    const labels = {home:'Trang chủ',schedule:'Lịch dạy',classes:'Lớp phụ trách',profile:'Hồ sơ của tôi',homework:'Giao bài tập',assessments:'Bài kiểm tra'};
     $('#teacherBreadcrumb').textContent = labels[view];
     document.querySelectorAll('[data-teacher-view]').forEach(button => {
       button.classList.toggle('active', button.dataset.teacherView === view);
@@ -199,7 +199,7 @@
       return;
     }
     if (view !== 'home') {
-      $('#teacherPage').innerHTML = view === 'schedule' ? renderSchedule() : view === 'classes' ? renderClasses() : view === 'homework' ? homework.render() : renderProfile();
+      $('#teacherPage').innerHTML = view === 'schedule' ? renderSchedule() : view === 'classes' ? renderClasses() : view === 'homework' ? homework.render() : view === 'assessments' ? renderAssessments() : renderProfile();
       if (view === 'homework') homework.hydrate();
       return;
     }
@@ -208,7 +208,17 @@
     const date = new Intl.DateTimeFormat('vi-VN', {day:'2-digit',month:'long',year:'numeric',timeZone:'Asia/Ho_Chi_Minh'}).format(new Date());
     const hero = '<section class="hero"><div><div class="eyebrow">Không gian dành cho thầy cô</div><h1>Xin chào, ' + esc(profile.name) + '</h1><p>Cùng theo dõi lịch dạy và đồng hành cùng học sinh mỗi ngày.</p></div><div class="hero-date">' + esc(days) + '<strong>' + esc(date) + '</strong></div></section>';
     const stats = '<div class="stats">' + stat('Lớp phụ trách', portal.classes.length, 'Theo phân công trong năm học', 'book') + stat('Tiết dạy mỗi tuần', portal.schedule.length, 'Theo thời khóa biểu hiện tại', 'clock') + '</div>';
-    $('#teacherPage').innerHTML = '<div id="teacherHome">' + hero + stats + '<section class="surface homework-entry"><div><div class="homework-entry-title">' + icon('book') + '<h2>Giao bài tập</h2></div><p>Chuẩn bị bài tập theo lớp và môn học, đặt hạn nộp và lưu lại để theo dõi.</p></div><button class="btn btn-primary" type="button" data-teacher-view="homework">Giao bài tập</button></section></div>';
+    $('#teacherPage').innerHTML = '<div id="teacherHome">' + hero + stats + '<div class="class-grid home-tools"><section class="surface homework-entry"><div><div class="homework-entry-title">' + icon('book') + '<h2>Giao bài tập</h2></div><p>Chuẩn bị bài tập theo lớp và môn học, đặt hạn nộp và lưu lại để theo dõi.</p></div><button class="btn btn-primary" type="button" data-teacher-view="homework">Giao bài tập</button></section><section class="surface homework-entry"><div><div class="homework-entry-title">' + icon('book') + '<h2>Bài kiểm tra</h2></div><p>Tạo bài kiểm tra theo lớp và môn học, rồi nhập điểm cho từng học sinh.</p></div><button class="btn btn-primary" type="button" data-teacher-view="assessments">Quản lý bài kiểm tra</button></section></div></div>';
+  }
+  function renderAssessments() {
+    const head = '<div class="section-head"><div><h2>Bài kiểm tra</h2><p>Chọn lớp và môn học để tạo bài kiểm tra, xem điểm và nhập điểm cho từng học sinh trong năm học ' + esc(yearLabel(portal.current)) + '.</p></div></div>';
+    const entries = portal.classes.flatMap(item => classSubjects(item.id).map(subject => ({item, subject})));
+    if (!entries.length) return head + empty('Chưa có môn được phân công', 'Khi nhà trường phân công lớp và môn học, bạn có thể tạo bài kiểm tra và nhập điểm tại đây.');
+    return head + '<div class="class-grid assessment-grid">' + entries.map(({item, subject}) => {
+      const books = (portal.gradebooks || []).filter(book => book.classId === item.id && book.subject === subject && (!book.year || book.year === portal.current));
+      const bookInfo = books.length ? '<p><strong>' + books.length + ' bài kiểm tra đã tạo</strong></p><p>' + esc(books.map(book => book.title).join(', ')) + '</p>' : '<p>Tạo bài kiểm tra và nhập điểm từng học sinh.</p>';
+      return '<section class="surface class-card assessment-card"><div class="class-card-top"><div class="class-mark">' + esc(subject) + '</div><span class="badge">' + esc(item.name) + '</span></div><div class="class-details">' + bookInfo + '</div><button class="btn btn-primary" type="button" data-teacher-assessment="' + esc(item.id) + '" data-teacher-subject="' + esc(subject) + '">Mở sổ điểm ' + icon('arrow') + '</button></section>';
+    }).join('') + '</div>';
   }
   function renderSchedule() {
     const head = '<div class="section-head"><div><h2>Thời khóa biểu của tôi</h2><p>Lịch của tất cả lớp được phân công trong năm học ' + esc(yearLabel(portal.current)) + '.</p></div></div>';
@@ -305,7 +315,7 @@
     subjectSelect.innerHTML = subjects.length ? subjects.map(subject => '<option value="' + esc(subject) + '">' + esc(subject) + '</option>').join('') : '<option value="">Chưa có môn được phân công</option>';
     subjectSelect.value = rosterSubject;
     const assessmentSelect = $('#teacherGradeAssessment');
-    assessmentSelect.innerHTML = '<option value="">＋ Tạo bài đánh giá mới</option>' + gradebooks.map(book => '<option value="' + esc(book.id) + '">' + esc(book.title) + '</option>').join('');
+    assessmentSelect.innerHTML = '<option value="">＋ Tạo bài kiểm tra mới</option>' + gradebooks.map(book => '<option value="' + esc(book.id) + '">' + esc(book.title) + '</option>').join('');
     assessmentSelect.value = rosterAssessmentId;
     $('#teacherGradeTitle').value = rosterAssessmentTitle;
     $('#teacherGradeTitleField').hidden = !!rosterAssessmentId;
@@ -315,7 +325,7 @@
     $('#teacherGradeSave').disabled = !subjects.length || gradebookLoading || gradebookSaving;
     $('#teacherGradeSave').textContent = gradebookSaving ? 'Đang lưu…' : 'Lưu điểm';
     const message = $('#teacherGradeMessage');
-    message.textContent = gradebookLoading ? 'Đang tải bài đánh giá…' : gradebookMessage;
+    message.textContent = gradebookLoading ? 'Đang tải bài kiểm tra…' : gradebookMessage;
     message.dataset.error = String(gradebookMessageError);
   }
   async function loadGradebooks() {
@@ -359,7 +369,7 @@
     if (!rosterClass || !rosterSubject || gradebookSaving || gradebookLoading) return;
     const title = String(rosterAssessmentId ? gradebooks.find(book => book.id === rosterAssessmentId)?.title || '' : rosterAssessmentTitle).trim();
     if (!title) {
-      gradebookMessage = 'Nhập tên bài đánh giá trước khi lưu.'; gradebookMessageError = true; renderGradebookControls(); $('#teacherGradeTitle').focus(); return;
+      gradebookMessage = 'Nhập tên bài kiểm tra trước khi lưu.'; gradebookMessageError = true; renderGradebookControls(); $('#teacherGradeTitle').focus(); return;
     }
     const scores = {};
     for (const student of rosterFor(rosterClass)) {
@@ -398,12 +408,12 @@
       gradebookSaving = false; renderGradebookControls(); renderRosterRows();
     }
   }
-  function openRoster(id) {
+  function openRoster(id, subject = '') {
     const item = classById(id); if (!item) return;
     rosterPreviousFocus = document.activeElement; rosterClass = id; rosterSearch = '';
     const subjects = classSubjects(id);
-    rosterSubject = subjects[0] || ''; rosterAssessmentId = ''; rosterAssessmentTitle = ''; rosterScores = {}; gradebooks = []; gradebookLoading = false; gradebookSaving = false; gradebookMessage = ''; gradebookMessageError = false;
-    $('#teacherRosterRoot').innerHTML = '<div class="roster-backdrop"><section id="teacherRosterDialog" class="roster-dialog" role="dialog" aria-modal="true" aria-labelledby="teacherRosterTitle"><div class="roster-head"><div><h2 id="teacherRosterTitle">Sổ điểm lớp ' + esc(item.name) + '</h2><p>' + esc(yearLabel(portal.current)) + ' · ' + (homeroom(item) ? 'Lớp chủ nhiệm' : 'Lớp giảng dạy') + '</p></div><button class="icon-button" id="teacherRosterClose" type="button" aria-label="Đóng sổ điểm">' + icon('close') + '</button></div><div class="roster-body"><div class="grade-controls"><label>Học phần / môn học<select id="teacherGradeSubject"></select></label><label>Bài đánh giá<select id="teacherGradeAssessment"><option value="">＋ Tạo bài đánh giá mới</option></select></label><label id="teacherGradeTitleField">Tên bài đánh giá<input id="teacherGradeTitle" type="text" maxlength="100" placeholder="Ví dụ: Kiểm tra giữa kỳ"></label></div><div class="roster-toolbar"><label class="sr-only" for="teacherStudentSearch">Tìm học sinh theo họ tên</label><input id="teacherStudentSearch" type="search" placeholder="Tìm học sinh theo họ tên…" autocomplete="off"><span id="teacherRosterCount"></span></div><div class="roster-scroll"><table class="roster-table"><thead><tr><th scope="col">STT</th><th scope="col">Họ và tên</th><th scope="col">Ngày sinh</th><th scope="col">Điểm (0–10)</th></tr></thead><tbody id="teacherRosterRows"></tbody></table></div></div><div class="roster-footer"><div class="roster-feedback"><span>Nhập điểm từ 0 đến 10. Bài đánh giá được lưu riêng theo lớp, môn và năm học.</span><div id="teacherGradeMessage" class="grade-message" role="status" aria-live="polite"></div></div><button class="btn btn-primary" id="teacherGradeSave" type="button">Lưu điểm</button></div></section></div>';
+    rosterSubject = subjects.includes(subject) ? subject : subjects[0] || ''; rosterAssessmentId = ''; rosterAssessmentTitle = ''; rosterScores = {}; gradebooks = []; gradebookLoading = false; gradebookSaving = false; gradebookMessage = ''; gradebookMessageError = false;
+    $('#teacherRosterRoot').innerHTML = '<div class="roster-backdrop"><section id="teacherRosterDialog" class="roster-dialog" role="dialog" aria-modal="true" aria-labelledby="teacherRosterTitle"><div class="roster-head"><div><h2 id="teacherRosterTitle">Sổ điểm lớp ' + esc(item.name) + '</h2><p>' + esc(yearLabel(portal.current)) + ' · ' + (homeroom(item) ? 'Lớp chủ nhiệm' : 'Lớp giảng dạy') + '</p></div><button class="icon-button" id="teacherRosterClose" type="button" aria-label="Đóng sổ điểm">' + icon('close') + '</button></div><div class="roster-body"><div class="grade-controls"><label>Học phần / môn học<select id="teacherGradeSubject"></select></label><label>Bài kiểm tra<select id="teacherGradeAssessment"><option value="">＋ Tạo bài kiểm tra mới</option></select></label><label id="teacherGradeTitleField">Tên bài kiểm tra<input id="teacherGradeTitle" type="text" maxlength="100" placeholder="Ví dụ: Kiểm tra giữa kỳ"></label></div><div class="roster-toolbar"><label class="sr-only" for="teacherStudentSearch">Tìm học sinh theo họ tên</label><input id="teacherStudentSearch" type="search" placeholder="Tìm học sinh theo họ tên…" autocomplete="off"><span id="teacherRosterCount"></span></div><div class="roster-scroll"><table class="roster-table"><thead><tr><th scope="col">STT</th><th scope="col">Họ và tên</th><th scope="col">Ngày sinh</th><th scope="col">Điểm (0–10)</th></tr></thead><tbody id="teacherRosterRows"></tbody></table></div></div><div class="roster-footer"><div class="roster-feedback"><span>Nhập điểm từ 0 đến 10. Bài kiểm tra được lưu riêng theo lớp, môn và năm học.</span><div id="teacherGradeMessage" class="grade-message" role="status" aria-live="polite"></div></div><button class="btn btn-primary" id="teacherGradeSave" type="button">Lưu điểm</button></div></section></div>';
     $('#appRoot').setAttribute('inert', '');
     renderGradebookControls(); renderRosterRows(); $('#teacherRosterClose').focus({preventScroll:true});
     if (rosterSubject) loadGradebooks();
@@ -497,6 +507,7 @@
     const navigation = event.target.closest('[data-teacher-view]');
     if (navigation && user) { view = navigation.dataset.teacherView; setMenu(false); render(); if (view === 'homework' && portal) homework.activate(); }
     const roster = event.target.closest('[data-teacher-roster]'); if (roster) openRoster(roster.dataset.teacherRoster);
+    const assessment = event.target.closest('[data-teacher-assessment]'); if (assessment) openRoster(assessment.dataset.teacherAssessment, assessment.dataset.teacherSubject);
     if (event.target.closest('#teacherRosterClose') || event.target.classList.contains('roster-backdrop')) closeRoster();
     if (event.target.closest('#teacherGradeSave')) saveGradebook();
     if (event.target.closest('[data-teacher-retry]')) refresh();
